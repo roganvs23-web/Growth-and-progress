@@ -1,4 +1,4 @@
-// Talks to the Stride coach server (see /server). The Claude API key lives
+// Talks to the Momentum coach server (see /server). The Claude API key lives
 // only on the server; the phone never holds it. Every call has an offline
 // fallback so the app still works with no network or no server configured.
 import type { CheckIn, CoachMessage, DailyHealth, GoalPath, Habit, Plan, PlanChange } from '../core/types';

@@ -3,7 +3,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } f
 import type { CoachMessage, GoalPath } from '../core/types';
 import { TEMPLATES, guessPath, planFromTemplate } from '../core/templates';
 import { buildPlan, onboardTurn, CoachError } from '../coach/coachClient';
-import { recentHealth, useStride } from '../state';
+import { recentHealth, useMomentum } from '../state';
 import { Bubble } from './Coach';
 import { Button, Card, Chip, Input, Label, Title, Txt } from '../ui/kit';
 import { useTheme } from '../ui/theme';
@@ -12,7 +12,7 @@ const PATHS: GoalPath[] = ['focus', 'fitness', 'quit', 'custom'];
 
 export default function Onboarding() {
   const t = useTheme();
-  const { health, today, setPlan, addChat, healthSourceName } = useStride();
+  const { health, today, setPlan, addChat, healthSourceName } = useMomentum();
   const [step, setStep] = useState<'goal' | 'talk'>('goal');
   const [path, setPath] = useState<GoalPath | null>(null);
   const [goal, setGoal] = useState('');
@@ -74,7 +74,7 @@ export default function Onboarding() {
   if (step === 'goal') {
     return (
       <ScrollView contentContainerStyle={{ padding: 18, paddingTop: 28, gap: 16 }} keyboardShouldPersistTaps="handled">
-        <Txt size={22} weight="700">Stride</Txt>
+        <Txt size={22} weight="700">Momentum</Txt>
         <Title>What do you want to get better at?</Title>
         <Txt muted>Pick a path or say it in your own words. Your coach asks a few questions, then builds your app around you.</Txt>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>

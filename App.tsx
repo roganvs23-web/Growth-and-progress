@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { StrideProvider, useStride } from './src/state';
+import { MomentumProvider, useMomentum } from './src/state';
 import Onboarding from './src/screens/Onboarding';
 import Today from './src/screens/Today';
 import Coach from './src/screens/Coach';
@@ -19,7 +19,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 function Root() {
   const t = useTheme();
-  const { ready, state } = useStride();
+  const { ready, state } = useMomentum();
   const [tab, setTab] = useState<Tab>('today');
 
   if (!ready) return <ActivityIndicator style={{ flex: 1 }} color={t.accent} />;
@@ -51,12 +51,12 @@ export default function App() {
   const t = useTheme();
   return (
     <SafeAreaProvider>
-    <StrideProvider>
+    <MomentumProvider>
       <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
         <StatusBar style="auto" />
         <Root />
       </SafeAreaView>
-    </StrideProvider>
+    </MomentumProvider>
     </SafeAreaProvider>
   );
 }

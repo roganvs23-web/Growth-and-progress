@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AppState } from '../core/types';
 
-const KEY = 'stride/state/v1';
+const KEY = 'momentum/state/v1';
 
 export const initialState: AppState = { version: 1, plan: null, logs: {}, chat: [], checkIns: [] };
 

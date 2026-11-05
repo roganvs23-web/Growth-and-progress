@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "Stride",
-    "slug": "stride",
+    "name": "Momentum",
+    "slug": "momentum",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.stride.coach",
+      "bundleIdentifier": "app.momentum.coach",
       "infoPlist": {
-        "NSHealthShareUsageDescription": "Stride reads sleep, steps, workouts and heart data from Apple Health to build and track your plan."
+        "NSHealthShareUsageDescription": "Momentum reads sleep, steps, workouts and heart data from Apple Health to build and track your plan."
       }
     },
     "android": {
@@ -21,7 +21,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "app.stride.coach"
+      "package": "app.momentum.coach"
     },
     "web": {
       "favicon": "./assets/favicon.png"

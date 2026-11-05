@@ -1,4 +1,4 @@
-// Minimal HTTP server for the Stride coach. Deploy anywhere that runs Node
+// Minimal HTTP server for the Momentum coach. Deploy anywhere that runs Node
 // (Fly.io, Render, Railway, Cloud Run). Set ANTHROPIC_API_KEY in the host's
 // secrets, then point the app at it with EXPO_PUBLIC_COACH_URL.
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
@@ -85,4 +85,4 @@ const server = createServer(async (req, res) => {
 });
 
 const port = Number(process.env.PORT ?? 8787);
-server.listen(port, () => console.log(`Stride coach listening on :${port}`));
+server.listen(port, () => console.log(`Momentum coach listening on :${port}`));

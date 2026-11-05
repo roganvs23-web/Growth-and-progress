@@ -1,4 +1,4 @@
-# Stride
+# Momentum
 
 An AI coach for any goal that works with any smartwatch. iPhone and Android, built with Expo (React Native, SDK 57) and a small Node server that talks to Claude.
 

@@ -4,13 +4,13 @@ import { computeStreak } from '../core/progress';
 import { weekStats } from '../core/checkin';
 import { fromDayKey, weekStart } from '../core/dates';
 import { weeklyCheckIn } from '../coach/coachClient';
-import { useStride } from '../state';
+import { useMomentum } from '../state';
 import { Button, Card, Label, Txt } from '../ui/kit';
 import { useTheme } from '../ui/theme';
 
 export default function Progress() {
   const t = useTheme();
-  const { state, today, health, addCheckIn, applyChange, addChat } = useStride();
+  const { state, today, health, addCheckIn, applyChange, addChat } = useMomentum();
   const plan = state.plan!;
   const [busy, setBusy] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());

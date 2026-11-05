@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, View } from 'react-native';
 import type { Habit } from '../core/types';
 import { completion, computeStreak, isHabitDone, readiness, LOW_READINESS } from '../core/progress';
 import { fromDayKey } from '../core/dates';
-import { useStride } from '../state';
+import { useMomentum } from '../state';
 import { Button, Card, Label, Tag, Txt } from '../ui/kit';
 import { useTheme } from '../ui/theme';
 
@@ -11,7 +11,7 @@ const METRIC_UNITS: Record<string, string> = { sleepHours: 'h', steps: ' steps',
 
 export default function Today({ onTalk }: { onTalk: () => void }) {
   const t = useTheme();
-  const { state, today, health, updateLog, reset } = useStride();
+  const { state, today, health, updateLog, reset } = useMomentum();
   const plan = state.plan!;
   const log = state.logs[today];
   const h = health[today];

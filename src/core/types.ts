@@ -1,4 +1,4 @@
-// Shared domain types for Stride. Pure data, no React Native imports,
+// Shared domain types for Momentum. Pure data, no React Native imports,
 // so everything in src/core can be unit tested in plain Node.
 
 /** A calendar day in the user's local time, formatted YYYY-MM-DD. */

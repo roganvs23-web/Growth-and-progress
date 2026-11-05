@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import type { CoachMessage } from '../core/types';
 import { chat, CoachError } from '../coach/coachClient';
-import { recentHealth, useStride } from '../state';
+import { recentHealth, useMomentum } from '../state';
 import { Button, Chip, Input, Txt } from '../ui/kit';
 import { useTheme } from '../ui/theme';
 
@@ -40,7 +40,7 @@ export function Bubble({ m }: { m: CoachMessage }) {
 
 export default function Coach() {
   const t = useTheme();
-  const { state, health, addChat, applyChange } = useStride();
+  const { state, health, addChat, applyChange } = useMomentum();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const scroll = useRef<ScrollView>(null);

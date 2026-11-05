@@ -19,5 +19,5 @@
 
 ## Decisions for Rogan
 - Price: suggested $7.99/month or $49.99/year with a 7-day free trial.
-- App name and bundle id: currently "Stride" and `app.stride.coach`.
+- App name and bundle id: currently "Momentum" and `app.momentum.coach`.
 - Apple Developer ($99/year) and Google Play Console ($25 once) accounts, in your name or a company's.

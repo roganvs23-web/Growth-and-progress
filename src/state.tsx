@@ -23,10 +23,10 @@ interface Ctx {
   reset(): void;
 }
 
-const StrideCtx = createContext<Ctx | null>(null);
+const MomentumCtx = createContext<Ctx | null>(null);
 const source = getHealthSource();
 
-export function StrideProvider({ children }: { children: React.ReactNode }) {
+export function MomentumProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [state, setState] = useState<AppState>(initialState);
   const [health, setHealth] = useState<Record<DayKey, DailyHealth>>({});
@@ -73,12 +73,12 @@ export function StrideProvider({ children }: { children: React.ReactNode }) {
     [ready, state, today, health],
   );
 
-  return <StrideCtx.Provider value={value}>{children}</StrideCtx.Provider>;
+  return <MomentumCtx.Provider value={value}>{children}</MomentumCtx.Provider>;
 }
 
-export function useStride(): Ctx {
-  const c = useContext(StrideCtx);
-  if (!c) throw new Error('useStride must be used inside StrideProvider');
+export function useMomentum(): Ctx {
+  const c = useContext(MomentumCtx);
+  if (!c) throw new Error('useMomentum must be used inside MomentumProvider');
   return c;
 }
 

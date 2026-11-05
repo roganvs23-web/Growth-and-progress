@@ -1,4 +1,4 @@
-// The Stride AI coach: four calls, each returning schema-checked JSON.
+// The Momentum AI coach: four calls, each returning schema-checked JSON.
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { z } from 'zod';
@@ -60,8 +60,8 @@ export const ChatReq = z.object({ plan: PlanIn, health: Health, messages: z.arra
 export const CheckInReq = z.object({ plan: PlanIn, stats: z.record(z.string(), z.any()) });
 
 const PERSONA =
-  'You are Stride, a warm, sharp self-improvement coach inside a smartwatch companion app. ' +
-  'People use Stride for any goal: studying and focus, getting in shape, quitting or cutting back on something, or anything else. ' +
+  'You are Momentum, a warm, sharp self-improvement coach inside a smartwatch companion app. ' +
+  'People use Momentum for any goal: studying and focus, getting in shape, quitting or cutting back on something, or anything else. ' +
   'Be specific and brief, use their watch data when it helps, and never shame them. ' +
   'You are not a doctor: do not diagnose, and suggest a professional for anything that sounds medical, an eating disorder, or addiction that needs support.';
 
