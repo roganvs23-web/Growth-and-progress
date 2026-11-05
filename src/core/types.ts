@@ -134,4 +134,6 @@ export interface AppState {
   checkIns: CheckIn[];
   /** Last seen time zone offset (minutes), to notice travel. */
   tzOffset?: number;
+  profile?: import('./profile').Profile;
+  privacy?: import('./profile').PrivacySettings;
 }

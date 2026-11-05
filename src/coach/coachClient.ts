@@ -7,19 +7,29 @@ import { offlineCheckIn } from '../core/checkin';
 
 const BASE = process.env.EXPO_PUBLIC_COACH_URL?.replace(/\/$/, '');
 
-export const coachAvailable = () => !!BASE;
+// Set from the privacy settings and profile (see state.tsx).
+let enabled = true;
+let ageGroup: 'child' | 'teen' | 'adult' = 'adult';
+export function configureCoach(opts: { enabled: boolean; ageGroup: 'child' | 'teen' | 'adult' }) {
+  enabled = opts.enabled;
+  ageGroup = opts.ageGroup;
+}
+const base = () => (enabled ? BASE : undefined);
+
+export const coachAvailable = () => !!base();
 
 export class CoachError extends Error {}
 
 async function post<T>(path: string, body: unknown, timeoutMs = 45000): Promise<T> {
-  if (!BASE) throw new CoachError('Coach server is not configured.');
+  const b = base();
+  if (!b) throw new CoachError('The AI coach is off. Turn it on in You > Privacy.');
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {
-    const res = await fetch(`${BASE}${path}`, {
+    const res = await fetch(`${b}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...(body as object), ageGroup }),
       signal: ctl.signal,
     });
     if (!res.ok) throw new CoachError(res.status === 429 ? 'The coach is busy. Try again in a minute.' : 'The coach could not answer. Try again.');
@@ -44,7 +54,7 @@ const OFFLINE_QUESTIONS = [
 ];
 
 export async function onboardTurn(goal: string, path: GoalPath, transcript: CoachMessage[], health: DailyHealth[]): Promise<OnboardTurn> {
-  if (!BASE) {
+  if (!base()) {
     const asked = transcript.filter((m) => m.role === 'assistant').length;
     return asked < OFFLINE_QUESTIONS.length
       ? { message: OFFLINE_QUESTIONS[asked], done: false }
@@ -63,7 +73,7 @@ export interface PlanDraft {
 
 /** Returns null when offline, so the caller keeps the template plan. */
 export async function buildPlan(goal: string, path: GoalPath, transcript: CoachMessage[], health: DailyHealth[], template: Plan): Promise<PlanDraft | null> {
-  if (!BASE) return null;
+  if (!base()) return null;
   return post<PlanDraft>('/v1/plan', { goal, path, transcript, health, template }, 90000);
 }
 
@@ -73,7 +83,7 @@ export interface ChatReply {
 }
 
 export async function chat(plan: Plan, health: DailyHealth[], messages: CoachMessage[]): Promise<ChatReply> {
-  if (!BASE) {
+  if (!base()) {
     return { reply: 'I can only chat when the coach server is connected. Your plan, streaks and weekly check-ins still work offline.', changes: null };
   }
   const history = messages.filter((m) => m.role !== 'note').slice(-16);
@@ -81,7 +91,7 @@ export async function chat(plan: Plan, health: DailyHealth[], messages: CoachMes
 }
 
 export async function weeklyCheckIn(plan: Plan, stats: WeekStats): Promise<CheckIn> {
-  if (!BASE) return offlineCheckIn(plan, stats);
+  if (!base()) return offlineCheckIn(plan, stats);
   try {
     const r = await post<{ bullets: string[]; suggestions: PlanChange[] }>('/v1/checkin', { plan, stats });
     return { weekOf: stats.weekOf, bullets: r.bullets, suggestions: r.suggestions, createdAt: new Date().toISOString(), source: 'ai' };

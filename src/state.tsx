@@ -8,6 +8,8 @@ import { emptyLog, withCheckIns } from './core/progress';
 import { addDays } from './core/dates';
 import { applyPlanChange } from './core/checkin';
 import { initialState, loadState, saveState } from './storage/store';
+import { ageGroup, applyPrivacy, DEFAULT_PRIVACY, type PrivacySettings, type Profile } from './core/profile';
+import { configureCoach } from './coach/coachClient';
 import { connectHealthSource, type HealthSource } from './health';
 import { NoHealthSource, SampleHealthSource } from './health/HealthSource';
 
@@ -28,6 +30,11 @@ interface Ctx {
   addChat(...m: CoachMessage[]): void;
   addCheckIn(c: CheckIn): void;
   reset(): void;
+  privacy: PrivacySettings;
+  setPrivacy(p: PrivacySettings): void;
+  setProfile(p: Profile): void;
+  /** Everything Momentum stores, as JSON, for "Export my data". */
+  exportData(): string;
   /** True when the time zone just changed by 2+ hours (probably traveling). */
   travelHint: boolean;
   dismissTravelHint(): void;
@@ -100,7 +107,12 @@ export function MomentumProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, [refreshHealth]);
 
-  const health = useMemo(() => withCheckIns(rawHealth, state.logs), [rawHealth, state.logs]);
+  const privacy = state.privacy ?? DEFAULT_PRIVACY;
+  const health = useMemo(() => withCheckIns(applyPrivacy(rawHealth, privacy), state.logs), [rawHealth, privacy, state.logs]);
+
+  useEffect(() => {
+    configureCoach({ enabled: privacy.coach, ageGroup: ageGroup(state.profile) });
+  }, [privacy.coach, state.profile]);
   const mode: Ctx['mode'] = useMemo(() => {
     if (source.current instanceof SampleHealthSource) return 'sample';
     // A watch shows up as measured sleep or heart data in the last week.
@@ -122,11 +134,16 @@ export function MomentumProvider({ children }: { children: React.ReactNode }) {
       applyChange: (c) => setState((s) => (s.plan ? { ...s, plan: applyPlanChange(s.plan, c) } : s)),
       addChat: (...m) => setState((s) => ({ ...s, chat: [...s.chat, ...m].slice(-200) })),
       addCheckIn: (c) => setState((s) => ({ ...s, checkIns: [c, ...s.checkIns.filter((x) => x.weekOf !== c.weekOf)].slice(0, 52) })),
-      reset: () => setState(initialState),
+      // Clears the plan, history, chat, profile and settings on this phone. The coach server keeps nothing.
+      reset: () => setState({ ...initialState, tzOffset: new Date().getTimezoneOffset() }),
+      privacy,
+      setPrivacy: (p) => setState((s) => ({ ...s, privacy: p })),
+      setProfile: (p) => setState((s) => ({ ...s, profile: p })),
+      exportData: () => JSON.stringify({ exportedAt: new Date().toISOString(), ...state, healthSummaries: health }, null, 2),
       travelHint,
       dismissTravelHint: () => setTravelHint(false),
     }),
-    [ready, state, today, health, sourceName, connectWatch, mode, travelHint],
+    [ready, state, today, health, sourceName, connectWatch, mode, travelHint, privacy],
   );
 
   return <MomentumCtx.Provider value={value}>{children}</MomentumCtx.Provider>;
