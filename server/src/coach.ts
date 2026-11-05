@@ -1,0 +1,189 @@
+// The Stride AI coach: four calls, each returning schema-checked JSON.
+import Anthropic from '@anthropic-ai/sdk';
+import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
+import { z } from 'zod';
+
+const client = new Anthropic(); // reads ANTHROPIC_API_KEY
+const MODEL = process.env.STRIDE_MODEL ?? 'claude-opus-5-5';
+
+// ---------- shapes shared with the app (src/core/types.ts) ----------
+const METRICS = ['sleepHours', 'steps', 'workoutMinutes', 'restingHR', 'hrvMs'] as const;
+
+/** Flat habit shape for the model; normalised into the app's Habit type below. */
+const AiHabit = z.object({
+  name: z.string().describe('max 7 words'),
+  detail: z.string().describe('how it is tracked, max 6 words'),
+  kind: z.enum(['watch', 'tap', 'counter']).describe('watch = measured by the smartwatch; tap = one tap yes/no; counter = user counts something'),
+  metric: z.enum(METRICS).nullable().describe('watch habits only'),
+  comparator: z.enum(['atLeast', 'atMost']).nullable().describe('watch and counter habits'),
+  target: z.number().nullable().describe('watch and counter habits'),
+  unit: z.string().nullable().describe('counter habits only, e.g. glasses, pages, times'),
+});
+type AiHabit = z.infer<typeof AiHabit>;
+
+export type Habit = {
+  id: string;
+  name: string;
+  detail: string;
+  source:
+    | { kind: 'watch'; metric: (typeof METRICS)[number]; comparator: 'atLeast' | 'atMost'; target: number }
+    | { kind: 'tap' }
+    | { kind: 'counter'; unit: string; comparator: 'atLeast' | 'atMost'; target: number };
+};
+
+function slug(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || 'habit';
+}
+
+export function toHabit(h: AiHabit, taken = new Set<string>()): Habit {
+  let id = slug(h.name);
+  for (let i = 2; taken.has(id); i++) id = `${slug(h.name)}-${i}`;
+  taken.add(id);
+  const comparator = h.comparator ?? 'atLeast';
+  if (h.kind === 'watch' && h.metric && typeof h.target === 'number') {
+    return { id, name: h.name, detail: h.detail, source: { kind: 'watch', metric: h.metric, comparator, target: h.target } };
+  }
+  if (h.kind === 'counter' && typeof h.target === 'number') {
+    return { id, name: h.name, detail: h.detail, source: { kind: 'counter', unit: h.unit ?? 'times', comparator, target: Math.max(0, h.target) } };
+  }
+  return { id, name: h.name, detail: h.detail, source: { kind: 'tap' } };
+}
+
+// ---------- request bodies (validated before we spend tokens) ----------
+const Msg = z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(4000) });
+const Health = z.array(z.record(z.string(), z.union([z.string(), z.number()]))).max(31);
+const PlanIn = z.object({ goal: z.string(), why: z.string(), habits: z.array(z.any()).max(8), dayThreshold: z.number(), nudges: z.array(z.string()) }).passthrough();
+
+export const OnboardReq = z.object({ goal: z.string().min(1).max(500), path: z.string(), transcript: z.array(Msg).max(20), health: Health });
+export const PlanReq = OnboardReq.extend({ template: PlanIn });
+export const ChatReq = z.object({ plan: PlanIn, health: Health, messages: z.array(Msg).min(1).max(20) });
+export const CheckInReq = z.object({ plan: PlanIn, stats: z.record(z.string(), z.any()) });
+
+const PERSONA =
+  'You are Stride, a warm, sharp self-improvement coach inside a smartwatch companion app. ' +
+  'People use Stride for any goal: studying and focus, getting in shape, quitting or cutting back on something, or anything else. ' +
+  'Be specific and brief, use their watch data when it helps, and never shame them. ' +
+  'You are not a doctor: do not diagnose, and suggest a professional for anything that sounds medical, an eating disorder, or addiction that needs support.';
+
+async function ask<T extends z.ZodType>(schema: T, system: string, messages: Anthropic.Beta.BetaMessageParam[], effort: 'low' | 'medium'): Promise<z.infer<T>> {
+  const res = await client.beta.messages.parse({
+    model: MODEL,
+    max_tokens: 4000,
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    system,
+    messages,
+    output_config: { effort, format: betaZodOutputFormat(schema) },
+  });
+  if (res.stop_reason === 'refusal') throw new CoachRefusal();
+  if (!res.parsed_output) throw new Error(`Unparseable coach output (stop_reason=${res.stop_reason})`);
+  return res.parsed_output as z.infer<T>;
+}
+
+export class CoachRefusal extends Error {}
+
+const healthText = (h: z.infer<typeof Health>) => (h.length ? h.map((d) => JSON.stringify(d)).join('\n') : 'No watch data yet.');
+
+// ---------- 1. onboarding interview ----------
+export async function onboard(b: z.infer<typeof OnboardReq>) {
+  const system =
+    `${PERSONA}\n\nRight now you are getting to know a new user before building their plan. Ask ONE short question at a time (max 28 words). ` +
+    'Cover: why the goal matters, what a normal day looks like, what got in the way before, and any limits (time, money, health). ' +
+    'Mention something specific from their watch data when relevant. Do not give the plan yet. ' +
+    'After 3 or 4 questions, or once you know enough, set done to true and make the message a one-line summary of what you learned.\n\n' +
+    `Goal path: ${b.path}\nWatch data, last days:\n${healthText(b.health)}`;
+  const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: `What I want to get better at: ${b.goal}` }, ...b.transcript];
+  // The transcript ends with the user's answer; if it is empty or ends on the coach, nudge for the next question.
+  if (messages[messages.length - 1].role === 'assistant') messages.push({ role: 'user', content: '(continue)' });
+  return ask(z.object({ message: z.string(), done: z.boolean() }), system, messages, 'low');
+}
+
+// ---------- 2. build the plan ----------
+export async function plan(b: z.infer<typeof PlanReq>) {
+  const schema = z.object({
+    goal: z.string().describe('the outcome, max 8 words'),
+    why: z.string().describe('their reason in their words, max 14 words'),
+    habits: z.array(AiHabit).describe('3 to 5 habits'),
+    dayThreshold: z.number().describe('share of habits that makes a good day, 0.5 to 1'),
+    nudges: z.array(z.string()).describe('2 or 3, each "HH:MM: message", max 12 words'),
+  });
+  const system =
+    `${PERSONA}\n\nBuild this person's plan. Make it realistic for THEIR day and small enough to start this week. ` +
+    'Prefer watch habits for anything a watch measures (sleep, steps, workouts, heart rate), so it tracks itself. ' +
+    'Use counter habits for things they count, and tap habits for yes/no. For "quit or cut back" goals, use an atMost counter with a limit a bit below their current use. ' +
+    `Start from this template and personalise it:\n${JSON.stringify(b.template.habits)}\n\nWatch data:\n${healthText(b.health)}`;
+  const convo = b.transcript.map((m) => `${m.role === 'assistant' ? 'Coach' : 'Them'}: ${m.content}`).join('\n');
+  const r = await ask(schema, system, [{ role: 'user', content: `My goal: ${b.goal}\n\nOur conversation:\n${convo || '(none)'}` }], 'medium');
+  const taken = new Set<string>();
+  return {
+    goal: r.goal,
+    why: r.why,
+    habits: r.habits.slice(0, 6).map((h) => toHabit(h, taken)),
+    dayThreshold: Math.min(1, Math.max(0.34, r.dayThreshold)),
+    nudges: r.nudges.slice(0, 4),
+  };
+}
+
+// ---------- 3. coach chat that can reshape the app ----------
+export async function chat(b: z.infer<typeof ChatReq>) {
+  const schema = z.object({
+    reply: z.string().describe('max 60 words'),
+    change: z
+      .object({
+        summary: z.string().describe('what changed, max 10 words, e.g. Added "Drink water"'),
+        addHabits: z.array(AiHabit),
+        removeHabitIds: z.array(z.string()).describe('exact ids from the current plan'),
+        dayThreshold: z.number().nullable(),
+      })
+      .nullable()
+      .describe('null unless they asked for a change or it clearly helps; keep 2 to 6 habits'),
+  });
+  const system =
+    `${PERSONA}\n\nYou can change their app: add or remove habits, or change how many habits make a good day (dayThreshold). ` +
+    'If they say the plan is too much, make it smaller rather than removing everything.\n\n' +
+    `Current plan:\n${JSON.stringify(b.plan)}\n\nWatch data:\n${healthText(b.health)}`;
+  const msgs = [...b.messages];
+  while (msgs.length && msgs[0].role !== 'user') msgs.shift();
+  const r = await ask(schema, system, msgs, 'low');
+  const taken = new Set<string>((b.plan.habits as { id: string }[]).map((h) => h.id));
+  return {
+    reply: r.reply,
+    changes: r.change
+      ? {
+          summary: r.change.summary,
+          addHabits: r.change.addHabits.map((h) => toHabit(h, taken)),
+          removeHabitIds: r.change.removeHabitIds,
+          ...(r.change.dayThreshold ? { dayThreshold: Math.min(1, Math.max(0.34, r.change.dayThreshold)) } : {}),
+        }
+      : null,
+  };
+}
+
+// ---------- 4. weekly check-in ----------
+export async function checkIn(b: z.infer<typeof CheckInReq>) {
+  const schema = z.object({
+    bullets: z.array(z.string()).describe('exactly 3: one pattern in the data tied to their goal, one win, one small change for next week; max 25 words each'),
+    suggestions: z
+      .array(z.object({ summary: z.string(), addHabits: z.array(AiHabit), removeHabitIds: z.array(z.string()), dayThreshold: z.number().nullable() }))
+      .describe('0 to 2 concrete plan changes they can accept with one tap; to change a target, remove the habit id and add the new version'),
+  });
+  const system =
+    `${PERSONA}\n\nWrite this person's weekly check-in from their stats. Rest and recovery days are healthy, not failures. ` +
+    `If a habit is rarely done, make it smaller. If they hit nearly every day, suggest one small step up.\n\nPlan:\n${JSON.stringify(b.plan)}`;
+  const r = await ask(schema, system, [{ role: 'user', content: `My week:\n${JSON.stringify(b.stats)}` }], 'low');
+  const taken = new Set<string>((b.plan.habits as { id: string }[]).map((h) => h.id));
+  return {
+    bullets: r.bullets.slice(0, 3),
+    suggestions: r.suggestions.slice(0, 2).map((s) => {
+      // A changed target re-uses the removed habit's id so history keeps lining up.
+      const removed = new Set(s.removeHabitIds);
+      const free = new Set([...taken].filter((id) => !removed.has(id)));
+      return {
+        summary: s.summary,
+        addHabits: s.addHabits.map((h) => toHabit(h, free)),
+        removeHabitIds: s.removeHabitIds,
+        ...(s.dayThreshold ? { dayThreshold: Math.min(1, Math.max(0.34, s.dayThreshold)) } : {}),
+      };
+    }),
+  };
+}
