@@ -7,7 +7,8 @@
 - Weekly AI check-in with one-tap plan changes, offline fallback
 - Coach server with schema-checked JSON, input validation, basic rate limit
 - Unit tests for the core logic; iOS and Android bundles build
-- Real watch data from Apple Health and Health Connect, with sample fallback
+- Real watch data from Apple Health and Health Connect
+- Phone-only mode: morning check-in, hand-ticked habits, focus timer; no sample data in production
 
 ## Next, in order
 1. **Test real watch data on devices.** Install a development build on an iPhone with Apple Watch and an Android phone with a Galaxy or Pixel watch, and compare numbers with the Health apps.

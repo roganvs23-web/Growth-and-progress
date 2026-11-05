@@ -13,8 +13,19 @@ export interface HealthSource {
   dailySummaries(days: number): Promise<Record<DayKey, DailyHealth>>;
 }
 
+/** No health store at all: the app runs on morning check-ins and taps. */
+export class NoHealthSource implements HealthSource {
+  readonly name = 'Check-ins';
+  async requestAccess() {
+    return true;
+  }
+  async dailySummaries() {
+    return {};
+  }
+}
+
 /**
- * Realistic sample data so the app is fully usable in Expo Go and in
+ * Realistic sample data (development builds only) so the app is fully usable in Expo Go and in
  * simulators, where no watch is paired. Deterministic per day.
  */
 export class SampleHealthSource implements HealthSource {

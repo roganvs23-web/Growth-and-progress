@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { SampleHealthSource, type HealthSource } from './HealthSource';
+import { NoHealthSource, SampleHealthSource, type HealthSource } from './HealthSource';
 
 export type { HealthSource };
 
@@ -7,10 +7,14 @@ export type { HealthSource };
  * Connects to the phone's health store: Apple Health on iPhone, Health
  * Connect on Android. Between them they cover nearly every smartwatch.
  *
- * Falls back to sample data when the real store is not usable: in Expo Go
- * (no native health modules), on a simulator, when Health Connect is not
- * installed, or when the user declines access. The returned source's `name`
- * says which one is in use, and the UI shows it.
+ * No watch is needed: the phone itself records steps (and often walks and
+ * runs) into the same store, and sleep and readiness come from the morning
+ * check-in when there is no watch data.
+ *
+ * When the health store is not usable (declined, Health Connect missing),
+ * real users get NoHealthSource and run on check-ins and taps. Only
+ * development builds (Expo Go, simulators) fall back to sample data, so
+ * nobody ever sees made-up numbers in the store app.
  */
 export async function connectHealthSource(): Promise<HealthSource> {
   try {
@@ -26,5 +30,5 @@ export async function connectHealthSource(): Promise<HealthSource> {
   } catch {
     // Native module missing (Expo Go) or the health store errored.
   }
-  return new SampleHealthSource();
+  return __DEV__ ? new SampleHealthSource() : new NoHealthSource();
 }

@@ -1,6 +1,6 @@
 import { addDays, daysBetween, weekStart } from '../dates';
 import { guessPath, planFromTemplate } from '../templates';
-import { computeStreak, isHabitDone, readiness, START_RECOVERY } from '../progress';
+import { computeStreak, isHabitDone, LOW_READINESS, readiness, START_RECOVERY, withCheckIns } from '../progress';
 import { applyPlanChange, offlineCheckIn, weekStats } from '../checkin';
 import type { DailyHealth, Logs, Plan } from '../types';
 
@@ -122,5 +122,34 @@ describe('weekly check-in', () => {
     const w = next.habits.find((h) => h.id === 'workout20')!;
     expect((w.source as { target: number }).target).toBe(15);
     expect(next.habits.length).toBe(plan.habits.length);
+  });
+});
+
+describe('phone-only mode (no watch)', () => {
+  test('morning check-in fills in sleep, but measured sleep wins', () => {
+    const logs: Logs = {
+      [START]: { taps: {}, counts: {}, morning: { sleepHours: 6, feel: 4 } },
+      [addDays(START, 1)]: { taps: {}, counts: {}, morning: { sleepHours: 5, feel: 2 } },
+    };
+    const health: Record<string, DailyHealth> = { [addDays(START, 1)]: { day: addDays(START, 1), sleepHours: 7.8, steps: 4000 } };
+    const merged = withCheckIns(health, logs);
+    expect(merged[START]).toEqual({ day: START, sleepHours: 6, feel: 4 });
+    expect(merged[addDays(START, 1)]).toMatchObject({ sleepHours: 7.8, steps: 4000, feel: 2 });
+    expect(health[addDays(START, 1)].feel).toBeUndefined(); // input not mutated
+  });
+
+  test('readiness works from the check-in alone', () => {
+    const great = readiness(START, { [START]: { day: START, sleepHours: 8, feel: 5 } })!;
+    const rough = readiness(START, { [START]: { day: START, sleepHours: 5, feel: 1 } })!;
+    expect(great).toBeGreaterThan(85);
+    expect(rough).toBeLessThan(LOW_READINESS);
+  });
+
+  test('a watch habit with no reading can be ticked by hand; a reading overrides the tick', () => {
+    const plan = planFromTemplate('fitness', '', '', START);
+    const workout = plan.habits.find((h) => h.id === 'workout20')!;
+    const log = { taps: { workout20: true }, counts: {} };
+    expect(isHabitDone(workout, log, { day: START })).toBe(true);
+    expect(isHabitDone(workout, log, { day: START, workoutMinutes: 5 })).toBe(false);
   });
 });

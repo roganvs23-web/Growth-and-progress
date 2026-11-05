@@ -41,6 +41,8 @@ export interface DailyHealth {
   workoutMinutes?: number;
   restingHR?: number;
   hrvMs?: number;
+  /** How the user said they feel this morning, 1 (rough) to 5 (great). From the morning check-in. */
+  feel?: number;
 }
 
 /** What the user logged by hand for a day. */
@@ -51,6 +53,17 @@ export interface DayLog {
   counts: Record<string, number>;
   /** User chose to take a planned recovery day. */
   plannedRest?: boolean;
+  /** Morning check-in, used when there is no watch (or no sleep data). */
+  morning?: MorningCheckIn;
+  /** Focus timer started at (ISO time), for counter habits measured in blocks. */
+  timer?: { habitId: string; startedAt: string; minutes: number };
+}
+
+export interface MorningCheckIn {
+  /** Self-reported hours slept. Ignored if the watch measured sleep. */
+  sleepHours?: number;
+  /** 1 (rough) to 5 (great). */
+  feel: number;
 }
 
 export type Logs = Record<DayKey, DayLog>;

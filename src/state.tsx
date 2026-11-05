@@ -4,18 +4,22 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { AppState as RNAppState } from 'react-native';
 import type { AppState, CheckIn, CoachMessage, DailyHealth, DayKey, DayLog, Plan, PlanChange } from './core/types';
 import { toDayKey } from './core/dates';
-import { emptyLog } from './core/progress';
+import { emptyLog, withCheckIns } from './core/progress';
+import { addDays } from './core/dates';
 import { applyPlanChange } from './core/checkin';
 import { initialState, loadState, saveState } from './storage/store';
 import { connectHealthSource, type HealthSource } from './health';
-import { SampleHealthSource } from './health/HealthSource';
+import { NoHealthSource, SampleHealthSource } from './health/HealthSource';
 
 interface Ctx {
   ready: boolean;
   state: AppState;
   today: DayKey;
+  /** Watch/phone data with morning check-ins folded in. Use this everywhere. */
   health: Record<DayKey, DailyHealth>;
   healthSourceName: string;
+  /** watch: a watch is sending sleep or heart data; phone: phone steps and check-ins; sample: dev builds only. */
+  mode: 'watch' | 'phone' | 'sample';
   /** Ask for watch data access (shows the OS permission sheet the first time). */
   connectWatch(): Promise<void>;
   setPlan(p: Plan | null): void;
@@ -31,10 +35,10 @@ const MomentumCtx = createContext<Ctx | null>(null);
 export function MomentumProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [state, setState] = useState<AppState>(initialState);
-  const [health, setHealth] = useState<Record<DayKey, DailyHealth>>({});
+  const [rawHealth, setHealth] = useState<Record<DayKey, DailyHealth>>({});
   const [today, setToday] = useState(toDayKey(new Date()));
   const loaded = useRef(false);
-  const source = useRef<HealthSource>(new SampleHealthSource());
+  const source = useRef<HealthSource>(new NoHealthSource());
   const connected = useRef(false);
   const [sourceName, setSourceName] = useState(source.current.name);
 
@@ -79,6 +83,14 @@ export function MomentumProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, [refreshHealth]);
 
+  const health = useMemo(() => withCheckIns(rawHealth, state.logs), [rawHealth, state.logs]);
+  const mode: Ctx['mode'] = useMemo(() => {
+    if (source.current instanceof SampleHealthSource) return 'sample';
+    // A watch shows up as measured sleep or heart data in the last week.
+    const week = Array.from({ length: 7 }, (_, i) => rawHealth[addDays(today, -i)]);
+    return week.some((h) => h && (h.sleepHours !== undefined || h.restingHR !== undefined || h.hrvMs !== undefined)) ? 'watch' : 'phone';
+  }, [rawHealth, today, sourceName]);
+
   const value = useMemo<Ctx>(
     () => ({
       ready,
@@ -86,6 +98,7 @@ export function MomentumProvider({ children }: { children: React.ReactNode }) {
       today,
       health,
       healthSourceName: sourceName,
+      mode,
       connectWatch,
       setPlan: (plan) => setState((s) => ({ ...s, plan })),
       updateLog: (day, f) => setState((s) => ({ ...s, logs: { ...s.logs, [day]: f(s.logs[day] ?? emptyLog()) } })),
@@ -94,7 +107,7 @@ export function MomentumProvider({ children }: { children: React.ReactNode }) {
       addCheckIn: (c) => setState((s) => ({ ...s, checkIns: [c, ...s.checkIns.filter((x) => x.weekOf !== c.weekOf)].slice(0, 52) })),
       reset: () => setState(initialState),
     }),
-    [ready, state, today, health, sourceName, connectWatch],
+    [ready, state, today, health, sourceName, connectWatch, mode],
   );
 
   return <MomentumCtx.Provider value={value}>{children}</MomentumCtx.Provider>;

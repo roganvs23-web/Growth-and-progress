@@ -9,17 +9,18 @@ An AI coach for any goal that works with any smartwatch. iPhone and Android, bui
 - **Forgiving streaks.** A good day is when you hit enough of your habits. You start with 1 recovery day and earn another every 6 good days (bank up to 2). A missed day spends a recovery day instead of breaking the streak. A low-readiness day is a free rest day. You can also plan a rest day.
 - **Coach chat.** Ask anything, or say "this is too much" and the coach changes your plan in place.
 - **Weekly check-in.** Numbers are computed on the phone; the coach turns them into three bullets and up to two one-tap plan changes. Works offline with a rule-based version.
+- **No watch needed.** Without a watch, the phone's own step count still flows in, a 10-second morning check-in (sleep and how you feel) drives readiness, habits a watch would measure can be ticked by hand, and study habits get a 25-minute focus timer. A watch is an upgrade, not a requirement. Sample data appears only in development builds (Expo Go, simulators), never in the store app.
 - **Offline first.** With no coach server configured, the app still runs end to end on templates and rules.
 
-- **Real watch data.** Reads sleep, steps, exercise minutes, resting heart rate and HRV from Apple Health on iPhone and Health Connect on Android. That covers Apple Watch, Galaxy Watch, Pixel Watch, Fitbit, Garmin, Oura, Whoop and most others, because their apps sync into one of the two. Overlapping records (watch plus phone) are de-duplicated. If the health store is not available (Expo Go, simulator, access declined), the app falls back to sample data and says so on the Today screen.
+- **Real watch data.** Reads sleep, steps, exercise minutes, resting heart rate and HRV from Apple Health on iPhone and Health Connect on Android. That covers Apple Watch, Galaxy Watch, Pixel Watch, Fitbit, Garmin, Oura, Whoop and most others, because their apps sync into one of the two. Overlapping records (watch plus phone) are de-duplicated.
 
 ## Run it
 
 ```bash
 npm install
-npm test            # 16 unit tests for streaks, readiness, templates, check-ins, sleep merging
+npm test            # 19 unit tests for streaks, readiness, templates, check-ins, sleep merging
 npm run typecheck
-npx expo start      # Expo Go works, but uses sample watch data
+npx expo start      # Expo Go works, with sample watch data
 ```
 
 Real watch data needs a development build, because Apple Health and Health Connect are native modules that Expo Go does not include:

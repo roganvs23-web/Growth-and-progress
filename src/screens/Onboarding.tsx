@@ -12,7 +12,7 @@ const PATHS: GoalPath[] = ['focus', 'fitness', 'quit', 'custom'];
 
 export default function Onboarding() {
   const t = useTheme();
-  const { health, today, setPlan, addChat, healthSourceName, connectWatch } = useMomentum();
+  const { health, today, setPlan, addChat, connectWatch } = useMomentum();
   const [step, setStep] = useState<'goal' | 'talk'>('goal');
   const [path, setPath] = useState<GoalPath | null>(null);
   const [goal, setGoal] = useState('');
@@ -97,7 +97,7 @@ export default function Onboarding() {
         />
         <Button title="Start with my coach" onPress={start} disabled={!goal.trim() && !path} />
         <Card>
-          <Txt muted size={13}>When you start, Momentum asks to read sleep, steps, workouts and heart data from {Platform.OS === 'ios' ? 'Apple Health (Apple Watch, Garmin, Oura and more)' : 'Health Connect (Galaxy Watch, Pixel Watch, Fitbit, Garmin and more)'}. Only daily totals are used. Now using: {healthSourceName}.</Txt>
+          <Txt muted size={13}>No watch needed. Momentum uses your phone's step count and a 10-second morning check-in. Got a watch? When you start, allow {Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect'} and it also reads your sleep, workouts and heart data (Apple Watch, Galaxy, Pixel, Fitbit, Garmin and more). Only daily totals are used.</Txt>
         </Card>
       </ScrollView>
     );
