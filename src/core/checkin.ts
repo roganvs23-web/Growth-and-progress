@@ -113,7 +113,7 @@ function easierTarget(cmp: 'atLeast' | 'atMost', t: number): number {
 export function applyPlanChange(plan: Plan, c: PlanChange): Plan {
   let habits = plan.habits.filter((h) => !(c.removeHabitIds ?? []).includes(h.id));
   for (const h of c.addHabits ?? []) {
-    if (habits.length >= 6) break;
+    if (habits.length >= 8) break;
     habits = [...habits.filter((x) => x.id !== h.id), h];
   }
   if (!habits.length) habits = plan.habits;

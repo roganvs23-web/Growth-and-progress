@@ -136,11 +136,12 @@ export async function chat(b: z.infer<typeof ChatReq>) {
         dayThreshold: z.number().nullable(),
       })
       .nullable()
-      .describe('null unless they asked for a change or it clearly helps; keep 2 to 6 habits'),
+      .describe('null unless they asked for a change or it clearly helps; keep 2 to 8 habits'),
   });
   const system =
     `${PERSONA}\n\nYou can change their app: add or remove habits, or change how many habits make a good day (dayThreshold). ` +
-    'If they say the plan is too much, make it smaller rather than removing everything.\n\n' +
+    'If they say the plan is too much, make it smaller rather than removing everything. ' +
+    'They may have up to 3 goals (plan.goal plus plan.goals); keep the total to 8 habits and balance them, favouring the goal that matters most right now. If plan.crunch is set (exam or deadline mode), protect that goal and sleep and go easy on the rest.\n\n' +
     `Current plan:\n${JSON.stringify(b.plan)}\n\nWatch data:\n${healthText(b.health)}`;
   const msgs = [...b.messages];
   while (msgs.length && msgs[0].role !== 'user') msgs.shift();

@@ -51,9 +51,10 @@ export function withCheckIns(health: Record<DayKey, DailyHealth>, logs: Logs): R
   return out;
 }
 
-export function completion(plan: Plan, log: DayLog | undefined, health: DailyHealth | undefined): { done: number; total: number; ratio: number } {
-  const total = plan.habits.length;
-  const done = plan.habits.filter((h) => isHabitDone(h, log, health)).length;
+export function completion(plan: Plan, log: DayLog | undefined, health: DailyHealth | undefined, day?: DayKey): { done: number; total: number; ratio: number } {
+  const habits = day ? activeHabits(plan, day) : plan.habits;
+  const total = habits.length;
+  const done = habits.filter((h) => isHabitDone(h, log, health)).length;
   return { done, total, ratio: total ? done / total : 0 };
 }
 
@@ -117,9 +118,9 @@ export function computeStreak(plan: Plan, logs: Logs, health: Record<DayKey, Dai
   const start = begin <= today ? begin : today;
   for (const day of daysBetween(start, today)) {
     const log = logs[day];
-    const { ratio } = completion(plan, log, health[day]);
+    const { ratio } = completion(plan, log, health[day], day);
     const easy = !!easyDayReason(day, health, logs);
-    const hit = ratio >= dayThresholdFor(plan, easy) - 1e-9;
+    const hit = ratio >= dayThresholdFor(plan, easy, day) - 1e-9;
     let r: DayResult;
 
     if (log?.sick && !hit) {
@@ -192,9 +193,9 @@ export function easyDayReason(day: DayKey, health: Record<DayKey, DailyHealth>, 
 }
 
 /** On an easy day, about half the usual habits make a good day (at least one). */
-export function dayThresholdFor(plan: Plan, easy: boolean): number {
+export function dayThresholdFor(plan: Plan, easy: boolean, day?: DayKey): number {
   if (!easy) return plan.dayThreshold;
-  const n = plan.habits.length || 1;
+  const n = (day ? activeHabits(plan, day) : plan.habits).length || 1;
   return Math.max(1 / n, Math.floor(plan.dayThreshold * n * 0.5) / n);
 }
 
@@ -220,4 +221,20 @@ export function slipTriggers(logs: Logs, from: DayKey, to: DayKey): { trigger: s
   const counts: Record<string, number> = {};
   for (const d of daysBetween(from, to)) for (const t of logs[d]?.slips ?? []) counts[t] = (counts[t] ?? 0) + 1;
   return Object.entries(counts).map(([trigger, count]) => ({ trigger, count })).sort((a, b) => b.count - a.count);
+}
+
+/** Is exam or deadline mode on for this day? */
+export function crunchOn(plan: Plan, day: DayKey): boolean {
+  return !!plan.crunch && day >= plan.crunch.startedAt && day <= plan.crunch.until;
+}
+
+/**
+ * The habits that count toward this day. In exam or deadline mode only the
+ * crunch goal's habits and sleep count; the rest become optional.
+ */
+export function activeHabits(plan: Plan, day: DayKey): Habit[] {
+  if (!crunchOn(plan, day)) return plan.habits;
+  const c = plan.crunch!;
+  const keep = plan.habits.filter((h) => (h.goalId ?? 'main') === c.goalId || (h.source.kind === 'watch' && h.source.metric === 'sleepHours'));
+  return keep.length ? keep : plan.habits;
 }
