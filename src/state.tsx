@@ -10,6 +10,8 @@ import { applyPlanChange } from './core/checkin';
 import { initialState, loadState, saveState } from './storage/store';
 import { ageGroup, applyPrivacy, DEFAULT_PRIVACY, type PrivacySettings, type Profile } from './core/profile';
 import { configureCoach } from './coach/coachClient';
+import type { BuddyLink } from './core/buddy';
+import { leaveBuddy } from './buddy/buddyClient';
 import { connectHealthSource, type HealthSource } from './health';
 import { NoHealthSource, SampleHealthSource } from './health/HealthSource';
 
@@ -38,6 +40,7 @@ interface Ctx {
   /** True when the time zone just changed by 2+ hours (probably traveling). */
   travelHint: boolean;
   dismissTravelHint(): void;
+  setBuddy(b: BuddyLink | undefined): void;
 }
 
 const MomentumCtx = createContext<Ctx | null>(null);
@@ -135,13 +138,18 @@ export function MomentumProvider({ children }: { children: React.ReactNode }) {
       addChat: (...m) => setState((s) => ({ ...s, chat: [...s.chat, ...m].slice(-200) })),
       addCheckIn: (c) => setState((s) => ({ ...s, checkIns: [c, ...s.checkIns.filter((x) => x.weekOf !== c.weekOf)].slice(0, 52) })),
       // Clears the plan, history, chat, profile and settings on this phone. The coach server keeps nothing.
-      reset: () => setState({ ...initialState, tzOffset: new Date().getTimezoneOffset() }),
+      reset: () => {
+        // Leaving the buddy pair deletes the shared streak on the server too.
+        if (state.buddy) leaveBuddy(state.buddy.token).catch(() => {});
+        setState({ ...initialState, tzOffset: new Date().getTimezoneOffset() });
+      },
       privacy,
       setPrivacy: (p) => setState((s) => ({ ...s, privacy: p })),
       setProfile: (p) => setState((s) => ({ ...s, profile: p })),
-      exportData: () => JSON.stringify({ exportedAt: new Date().toISOString(), ...state, healthSummaries: health }, null, 2),
+      exportData: () => JSON.stringify({ exportedAt: new Date().toISOString(), ...state, buddy: state.buddy && { ...state.buddy, token: undefined }, healthSummaries: health }, null, 2),
       travelHint,
       dismissTravelHint: () => setTravelHint(false),
+      setBuddy: (buddy) => setState((s) => ({ ...s, buddy })),
     }),
     [ready, state, today, health, sourceName, connectWatch, mode, travelHint, privacy],
   );

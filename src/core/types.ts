@@ -136,4 +136,5 @@ export interface AppState {
   tzOffset?: number;
   profile?: import('./profile').Profile;
   privacy?: import('./profile').PrivacySettings;
+  buddy?: import('./buddy').BuddyLink;
 }

@@ -13,11 +13,12 @@
 - Up to 3 goals at once; exam and deadline mode
 - Privacy: per-metric switches, AI coach on/off, export and delete my data (You tab)
 - Age check by birth year, teen-safe coach rules, student and teen pricing hooks
+- Buddy mode: invite code, shared streaks and cheers (server endpoints under /v1/buddy)
 
 ## Next, in order
 1. **Test real watch data on devices.** Install a development build on an iPhone with Apple Watch and an Android phone with a Galaxy or Pixel watch, and compare numbers with the Health apps.
-2. **Deploy the coach server** (Fly.io, Render or Railway) with `ANTHROPIC_API_KEY` as a secret, and set `EXPO_PUBLIC_COACH_URL` in EAS.
-3. **Accounts and sync.** Sign in with Apple and Google, back up the plan and history to the server so a new phone restores it. Replace the per-IP rate limit with per-account limits.
+2. **Deploy the coach server** (Fly.io, Render or Railway) with `ANTHROPIC_API_KEY` as a secret, and set `EXPO_PUBLIC_COACH_URL` in EAS. For buddy mode, mount a small volume and set `BUDDY_DATA_FILE` (for example `/data/buddies.json`) so pairs survive restarts. Run one instance until buddy storage moves to a database (step 3).
+3. **Accounts and sync.** Sign in with Apple and Google, back up the plan and history to the server so a new phone restores it. Replace the per-IP rate limit with per-account limits, and move buddy pairs into the same database.
 4. **Subscriptions.** Free trial then monthly or yearly plan, through App Store and Google Play billing (RevenueCat is the usual shortcut). Gate the AI coach and check-ins behind it; keep tracking free.
 5. **Nudges as real notifications.** Schedule the plan's nudges with `expo-notifications` (already installed), and send a reminder when the weekly check-in is ready.
 6. **Watch app.** A small complication or tile showing streak and readiness (Apple Watch first, then Wear OS).

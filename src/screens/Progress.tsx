@@ -7,6 +7,7 @@ import { weeklyCheckIn } from '../coach/coachClient';
 import { useMomentum } from '../state';
 import { Button, Card, Label, Txt } from '../ui/kit';
 import { useTheme } from '../ui/theme';
+import BuddyCard from './BuddyCard';
 
 export default function Progress() {
   const t = useTheme();
@@ -68,6 +69,8 @@ export default function Progress() {
           </View>
         ))}
       </Card>
+
+      <BuddyCard />
 
       <Card>
         <Label>Weekly check-in</Label>
