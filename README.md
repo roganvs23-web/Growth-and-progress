@@ -15,6 +15,7 @@ An AI coach for any goal that works with any smartwatch. iPhone and Android, bui
 - **Exam or deadline mode.** Pick a goal and a length (3 days to 2 weeks). Until then only that goal's habits and sleep count toward the streak; the rest are shown as optional.
 - **Privacy you control.** The You tab has a switch for each health metric and for the AI coach (off means nothing leaves the phone). Export all your data, or delete it for good.
 - **Teens and students.** A first screen asks only for the birth year. Under-18s get a coach that never gives diet or weight-loss advice; under-13s need a parent or guardian step (a placeholder, see ROADMAP). Student and teen pricing is shown, not yet charged.
+- **Buddy mode.** On the Progress tab, invite one friend with a 6-letter code (it lasts 48 hours). You see each other's nickname and streak, whether today is a good day yet, and can send a cheer. No health data, habits or messages are shared, and either person leaving deletes the link from the server. It needs the Momentum server, so it is hidden when none is set up, and it is off for under-13s.
 - **Offline first.** With no coach server configured, the app still runs end to end on templates and rules.
 
 - **Real watch data.** Reads sleep, steps, exercise minutes, resting heart rate and HRV from Apple Health on iPhone and Health Connect on Android. That covers Apple Watch, Galaxy Watch, Pixel Watch, Fitbit, Garmin, Oura, Whoop and most others, because their apps sync into one of the two. Overlapping records (watch plus phone) are de-duplicated.

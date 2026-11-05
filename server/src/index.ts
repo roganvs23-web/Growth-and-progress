@@ -5,12 +5,20 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { ChatReq, CheckInReq, CoachRefusal, OnboardReq, PlanReq, chat, checkIn, onboard, plan } from './coach';
+import { BuddyCreateReq, BuddyError, BuddyJoinReq, BuddyStore, BuddySyncReq, BuddyTokenReq } from './buddy';
+
+const buddies = new BuddyStore(process.env.BUDDY_DATA_FILE);
 
 const routes: Record<string, { schema: z.ZodType; run: (b: any) => Promise<unknown> }> = {
   '/v1/onboard': { schema: OnboardReq, run: onboard },
   '/v1/plan': { schema: PlanReq, run: plan },
   '/v1/chat': { schema: ChatReq, run: chat },
   '/v1/checkin': { schema: CheckInReq, run: checkIn },
+  '/v1/buddy/create': { schema: BuddyCreateReq, run: async (b) => buddies.create(b) },
+  '/v1/buddy/join': { schema: BuddyJoinReq, run: async (b) => buddies.join(b) },
+  '/v1/buddy/sync': { schema: BuddySyncReq, run: async (b) => buddies.sync(b) },
+  '/v1/buddy/cheer': { schema: BuddyTokenReq, run: async (b) => buddies.cheer(b) },
+  '/v1/buddy/leave': { schema: BuddyTokenReq, run: async (b) => buddies.leave(b) },
 };
 
 const MAX_BODY = 200_000;
@@ -73,6 +81,7 @@ const server = createServer(async (req, res) => {
   try {
     send(res, 200, await route.run(parsed.data));
   } catch (e) {
+    if (e instanceof BuddyError) return send(res, e.status, { error: e.code });
     if (e instanceof CoachRefusal) return send(res, 422, { error: 'refused' });
     if (e instanceof Anthropic.RateLimitError) return send(res, 429, { error: 'rate_limited' });
     if (e instanceof Anthropic.APIError) {
