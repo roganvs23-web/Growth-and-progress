@@ -92,7 +92,9 @@ export interface DayResult {
   outcome: DayOutcome;
   ratio: number;
   /** Why the day was a rest day, if it was one. */
-  restReason?: 'planned' | 'lowReadiness' | 'recoveryDay';
+  restReason?: 'planned' | 'sick' | 'travel' | 'lowReadiness' | 'recoveryDay';
+  /** The plan was lightened this day (bad night, sick, travel). */
+  easy?: boolean;
 }
 
 export interface StreakSummary {
@@ -108,17 +110,23 @@ export function computeStreak(plan: Plan, logs: Logs, health: Record<DayKey, Dai
   let bank = START_RECOVERY;
   let hitsSinceEarn = 0;
   let current = 0;
-  let best = 0;
+  let best = plan.bestBeforeRestart ?? 0;
   const days: DayResult[] = [];
 
-  const start = plan.createdAt <= today ? plan.createdAt : today;
+  const begin = plan.restartedAt && plan.restartedAt > plan.createdAt ? plan.restartedAt : plan.createdAt;
+  const start = begin <= today ? begin : today;
   for (const day of daysBetween(start, today)) {
     const log = logs[day];
     const { ratio } = completion(plan, log, health[day]);
-    const hit = ratio >= plan.dayThreshold - 1e-9;
+    const easy = !!easyDayReason(day, health, logs);
+    const hit = ratio >= dayThresholdFor(plan, easy) - 1e-9;
     let r: DayResult;
 
-    if (log?.plannedRest && bank > 0) {
+    if (log?.sick && !hit) {
+      r = { day, outcome: 'rest', ratio, restReason: 'sick', easy };
+    } else if (log?.travel && !hit) {
+      r = { day, outcome: day === today ? 'pending' : 'rest', ratio, restReason: 'travel', easy };
+    } else if (log?.plannedRest && bank > 0) {
       bank--;
       r = { day, outcome: 'rest', ratio, restReason: 'planned' };
     } else if (hit) {
@@ -134,6 +142,7 @@ export function computeStreak(plan: Plan, logs: Logs, health: Record<DayKey, Dai
       r = { day, outcome: 'miss', ratio };
     }
 
+    if (easy) r.easy = true;
     if (r.outcome === 'hit') {
       current++;
       best = Math.max(best, current);
@@ -155,4 +164,60 @@ export function computeStreak(plan: Plan, logs: Logs, health: Record<DayKey, Dai
     recoveryLeft: bank,
     hitsToNextRecovery: bank >= MAX_RECOVERY ? 0 : HITS_PER_RECOVERY - hitsSinceEarn,
   };
+}
+
+export type EasyReason = 'sick' | 'travel' | 'lowReadiness' | 'feelingRough' | 'highRestingHR';
+
+/**
+ * Why today's plan should be lighter, or null. A bad night, feeling rough,
+ * a resting heart rate well above normal (often the first sign of getting
+ * sick), being sick, or traveling.
+ */
+export function easyDayReason(day: DayKey, health: Record<DayKey, DailyHealth>, logs: Logs): EasyReason | null {
+  const log = logs[day];
+  if (log?.sick) return 'sick';
+  if (log?.travel) return 'travel';
+  const h = health[day];
+  if (h?.feel !== undefined && h.feel <= 1) return 'feelingRough';
+  const r = readiness(day, health);
+  if (r !== undefined && r < LOW_READINESS) return 'lowReadiness';
+  if (h?.restingHR !== undefined) {
+    const prior = Array.from({ length: 7 }, (_, i) => health[addDays(day, -(i + 1))]?.restingHR).filter((x): x is number => x !== undefined);
+    if (prior.length >= 3) {
+      const base = prior.reduce((a, b) => a + b, 0) / prior.length;
+      if (h.restingHR >= base + 5) return 'highRestingHR';
+    }
+  }
+  return null;
+}
+
+/** On an easy day, about half the usual habits make a good day (at least one). */
+export function dayThresholdFor(plan: Plan, easy: boolean): number {
+  if (!easy) return plan.dayThreshold;
+  const n = plan.habits.length || 1;
+  return Math.max(1 / n, Math.floor(plan.dayThreshold * n * 0.5) / n);
+}
+
+/** Days since the user last logged anything (tap, count, check-in, rest). */
+export function daysAway(logs: Logs, today: DayKey): number | null {
+  const active = Object.entries(logs)
+    .filter(([d, l]) => d < today && (Object.values(l.taps).some(Boolean) || Object.keys(l.counts).length || l.morning || l.plannedRest || l.sick || l.travel))
+    .map(([d]) => d)
+    .sort();
+  const last = active[active.length - 1];
+  if (!last) return null;
+  return daysBetween(last, today).length - 1;
+}
+
+/** A fresh start after time away: keep history and the best streak, count from today. */
+export function freshStart(plan: Plan, logs: Logs, health: Record<DayKey, DailyHealth>, today: DayKey): Plan {
+  const s = computeStreak(plan, logs, health, today);
+  return { ...plan, restartedAt: today, bestBeforeRestart: s.best };
+}
+
+/** Slip-up triggers in a date range, most common first. */
+export function slipTriggers(logs: Logs, from: DayKey, to: DayKey): { trigger: string; count: number }[] {
+  const counts: Record<string, number> = {};
+  for (const d of daysBetween(from, to)) for (const t of logs[d]?.slips ?? []) counts[t] = (counts[t] ?? 0) + 1;
+  return Object.entries(counts).map(([trigger, count]) => ({ trigger, count })).sort((a, b) => b.count - a.count);
 }

@@ -169,7 +169,9 @@ export async function checkIn(b: z.infer<typeof CheckInReq>) {
   });
   const system =
     `${PERSONA}\n\nWrite this person's weekly check-in from their stats. Rest and recovery days are healthy, not failures. ` +
-    `If a habit is rarely done, make it smaller. If they hit nearly every day, suggest one small step up.\n\nPlan:\n${JSON.stringify(b.plan)}`;
+    `If a habit is rarely done, make it smaller. If they hit nearly every day, suggest one small step up. ` +
+    'For quit goals, slips are normal: if slipTriggers is not empty, name the top trigger kindly and suggest one thing to do instead next time; if most slips followed short sleep (slipsAfterShortSleep), say so. Sick and travel days are not failures.' +
+    `\n\nPlan:\n${JSON.stringify(b.plan)}`;
   const r = await ask(schema, system, [{ role: 'user', content: `My week:\n${JSON.stringify(b.stats)}` }], 'low');
   const taken = new Set<string>((b.plan.habits as { id: string }[]).map((h) => h.id));
   return {

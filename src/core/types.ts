@@ -31,6 +31,10 @@ export interface Plan {
   dayThreshold: number;
   nudges: string[];
   createdAt: DayKey;
+  /** Set by a "welcome back" fresh start: streaks count from this day. */
+  restartedAt?: DayKey;
+  /** Best streak before the last fresh start, so it is never lost. */
+  bestBeforeRestart?: number;
 }
 
 /** One day of watch data. Any field may be missing if the watch did not record it. */
@@ -55,6 +59,12 @@ export interface DayLog {
   plannedRest?: boolean;
   /** Morning check-in, used when there is no watch (or no sleep data). */
   morning?: MorningCheckIn;
+  /** Feeling sick: the day is a free rest day and the plan is lightened. */
+  sick?: boolean;
+  /** Traveling: missed days are free and the plan is lightened. */
+  travel?: boolean;
+  /** Quit goals: what triggered each slip today (e.g. "Stress"). */
+  slips?: string[];
   /** Focus timer started at (ISO time), for counter habits measured in blocks. */
   timer?: { habitId: string; startedAt: string; minutes: number };
 }
@@ -70,7 +80,7 @@ export type Logs = Record<DayKey, DayLog>;
 
 export type DayOutcome =
   | 'hit' // enough habits done
-  | 'rest' // planned rest, or low readiness, or a banked recovery day covered a miss
+  | 'rest' // planned rest, sick, travel, low readiness, or a banked recovery day covered a miss
   | 'miss' // streak broken
   | 'pending'; // today, not finished yet
 
@@ -100,4 +110,6 @@ export interface AppState {
   logs: Logs;
   chat: CoachMessage[];
   checkIns: CheckIn[];
+  /** Last seen time zone offset (minutes), to notice travel. */
+  tzOffset?: number;
 }
