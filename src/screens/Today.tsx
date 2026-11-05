@@ -5,7 +5,9 @@ import { completion, computeStreak, dayThresholdFor, daysAway, easyDayReason, fr
 import { fromDayKey } from '../core/dates';
 import { useMomentum } from '../state';
 import { Button, Card, Label, Txt } from '../ui/kit';
-import { HabitRow, MorningCheckInCard } from './todayParts';
+import { MorningCheckInCard } from './todayParts';
+import { AddGoalCard, CrunchCard, GoalSections } from './goalsParts';
+import { goalsOf } from '../core/goals';
 import { DayModeButtons, EasyDayCard, overLimit, SlipUpCard, TravelHintCard, WelcomeBackCard } from './toughDays';
 import { useTheme } from '../ui/theme';
 
@@ -20,14 +22,14 @@ export default function Today({ onTalk }: { onTalk: () => void }) {
   const h = health[today];
   const score = readiness(today, health);
   const streak = computeStreak(plan, state.logs, health, today);
-  const { done, total } = completion(plan, log, h);
+  const { done, total } = completion(plan, log, h, today);
   const resting = !!log?.plannedRest;
   const updateToday = useCallback((f: (l: DayLog) => DayLog) => updateLog(today, f), [updateLog, today]);
   // Measured sleep comes from the watch; if it's missing we ask in the morning check-in.
   const measuredSleep = h?.sleepHours !== undefined && log?.morning?.sleepHours === undefined;
   const showCheckIn = !log?.morning;
   const easy = easyDayReason(today, health, state.logs);
-  const needed = Math.ceil(dayThresholdFor(plan, !!easy) * plan.habits.length - 1e-9);
+  const needed = Math.ceil(dayThresholdFor(plan, !!easy, today) * total - 1e-9);
   const away = daysAway(state.logs, today);
   const showWelcome = !hideWelcome && away !== null && away >= 4 && plan.restartedAt !== today;
   const noWatchToday = mode === 'watch' && h?.restingHR === undefined && h?.hrvMs === undefined && (log?.morning?.sleepHours !== undefined || h?.sleepHours === undefined);
@@ -107,22 +109,23 @@ export default function Today({ onTalk }: { onTalk: () => void }) {
       </Card>
 
       <DayModeButtons log={log} onToggle={toggleMode} />
-      {easy && <EasyDayCard reason={easy} needed={needed} total={plan.habits.length} />}
+      {easy && <EasyDayCard reason={easy} needed={needed} total={total} />}
 
       <View style={{ gap: 4 }}>
-        <Label>Your goal</Label>
-        <Txt size={17} weight="600">{plan.goal}</Txt>
-        {!!plan.why && <Txt muted size={13}>{plan.why}</Txt>}
+        <Label>{goalsOf(plan).length > 1 ? 'Your goals' : 'Your goal'}</Label>
+        {goalsOf(plan).map((g) => <Txt key={g.id} size={17} weight="600">{g.title}</Txt>)}
+        {!!plan.why && goalsOf(plan).length === 1 && <Txt muted size={13}>{plan.why}</Txt>}
       </View>
+
+      <CrunchCard plan={plan} today={today} setPlan={setPlan} />
 
       <View style={{ gap: 8 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           <Txt size={20} weight="700">Today</Txt>
           <Txt muted size={13}>{resting || log?.sick ? 'Rest day, streak is safe' : `${done} of ${total} done${easy ? ` · ${needed} needed` : ''}`}</Txt>
         </View>
-        {plan.habits.map((habit) => (
-          <HabitRow key={habit.id} habit={habit} log={log} health={h} update={updateToday} />
-        ))}
+        <GoalSections plan={plan} day={today} log={log} health={h} update={updateToday} setPlan={setPlan} />
+        <AddGoalCard plan={plan} setPlan={setPlan} />
       </View>
 
       {slips.map((hb) => (

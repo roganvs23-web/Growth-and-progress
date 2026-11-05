@@ -20,6 +20,24 @@ export interface Habit {
   name: string;
   detail: string;
   source: HabitSource;
+  /** Which goal this habit serves. Missing means the main goal. */
+  goalId?: string;
+}
+
+/** An extra goal next to the main one (the main goal lives on Plan itself). */
+export interface Goal {
+  id: string;
+  path: GoalPath;
+  title: string;
+  why: string;
+}
+
+/** Exam or deadline mode: until `until`, only the crunch goal's habits (and sleep) count. */
+export interface Crunch {
+  label: string;
+  until: DayKey;
+  goalId: string;
+  startedAt: DayKey;
 }
 
 export interface Plan {
@@ -31,6 +49,10 @@ export interface Plan {
   dayThreshold: number;
   nudges: string[];
   createdAt: DayKey;
+  /** Extra goals, for example studying and quitting vaping at once (max 2 extra). */
+  goals?: Goal[];
+  /** Exam or deadline mode, if on. */
+  crunch?: Crunch;
   /** Set by a "welcome back" fresh start: streaks count from this day. */
   restartedAt?: DayKey;
   /** Best streak before the last fresh start, so it is never lost. */

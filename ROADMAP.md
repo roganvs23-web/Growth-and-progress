@@ -10,6 +10,7 @@
 - Real watch data from Apple Health and Health Connect
 - Phone-only mode: morning check-in, hand-ticked habits, focus timer; no sample data in production
 - Tough days: easy days, sick and travel modes, welcome-back fresh start, slip-up reset with triggers
+- Up to 3 goals at once; exam and deadline mode
 
 ## Next, in order
 1. **Test real watch data on devices.** Install a development build on an iPhone with Apple Watch and an Android phone with a Galaxy or Pixel watch, and compare numbers with the Health apps.
