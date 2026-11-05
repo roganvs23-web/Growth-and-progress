@@ -7,9 +7,10 @@
 - Weekly AI check-in with one-tap plan changes, offline fallback
 - Coach server with schema-checked JSON, input validation, basic rate limit
 - Unit tests for the core logic; iOS and Android bundles build
+- Real watch data from Apple Health and Health Connect, with sample fallback
 
 ## Next, in order
-1. **Real watch data.** Add the HealthKit adapter (iOS) and Health Connect adapter (Android) in `src/health/`. Needs a development build (`eas build --profile development`).
+1. **Test real watch data on devices.** Install a development build on an iPhone with Apple Watch and an Android phone with a Galaxy or Pixel watch, and compare numbers with the Health apps.
 2. **Deploy the coach server** (Fly.io, Render or Railway) with `ANTHROPIC_API_KEY` as a secret, and set `EXPO_PUBLIC_COACH_URL` in EAS.
 3. **Accounts and sync.** Sign in with Apple and Google, back up the plan and history to the server so a new phone restores it. Replace the per-IP rate limit with per-account limits.
 4. **Subscriptions.** Free trial then monthly or yearly plan, through App Store and Google Play billing (RevenueCat is the usual shortcut). Gate the AI coach and check-ins behind it; keep tracking free.
