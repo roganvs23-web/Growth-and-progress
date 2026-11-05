@@ -11,16 +11,26 @@ An AI coach for any goal that works with any smartwatch. iPhone and Android, bui
 - **Weekly check-in.** Numbers are computed on the phone; the coach turns them into three bullets and up to two one-tap plan changes. Works offline with a rule-based version.
 - **Offline first.** With no coach server configured, the app still runs end to end on templates and rules.
 
-Watch data currently comes from a realistic sample source so the app runs in Expo Go and simulators. See `src/health/index.ts` for the two adapters (Apple HealthKit, Android Health Connect) that cover nearly every watch.
+- **Real watch data.** Reads sleep, steps, exercise minutes, resting heart rate and HRV from Apple Health on iPhone and Health Connect on Android. That covers Apple Watch, Galaxy Watch, Pixel Watch, Fitbit, Garmin, Oura, Whoop and most others, because their apps sync into one of the two. Overlapping records (watch plus phone) are de-duplicated. If the health store is not available (Expo Go, simulator, access declined), the app falls back to sample data and says so on the Today screen.
 
 ## Run it
 
 ```bash
 npm install
-npm test            # 11 unit tests for streaks, readiness, templates, check-ins
+npm test            # 16 unit tests for streaks, readiness, templates, check-ins, sleep merging
 npm run typecheck
-npx expo start      # scan the QR code with Expo Go
+npx expo start      # Expo Go works, but uses sample watch data
 ```
+
+Real watch data needs a development build, because Apple Health and Health Connect are native modules that Expo Go does not include:
+
+```bash
+npx eas-cli@latest build --profile development --platform ios      # install on your iPhone
+npx eas-cli@latest build --profile development --platform android  # install on your Android phone
+npx expo start --dev-client
+```
+
+On Android the phone needs the Health Connect app (built into Android 14 and later, a free Play Store download before that), and your watch's app must have "sync to Health Connect" turned on.
 
 To turn on the AI coach locally:
 
@@ -38,7 +48,7 @@ Then in the app folder create `.env` with `EXPO_PUBLIC_COACH_URL=http://<your co
 ```
 App.tsx                 tabs: Today, Coach, Progress (onboarding until a plan exists)
 src/core/               pure logic, unit tested: types, templates, progress (streaks, readiness), checkin
-src/health/             HealthSource interface + sample data; native adapters go here
+src/health/             HealthKitSource (iPhone), HealthConnectSource (Android), sample fallback
 src/coach/coachClient   calls the server, falls back offline
 src/screens/            Onboarding, Today, Coach, Progress
 src/ui/                 theme (light and dark) and small component kit

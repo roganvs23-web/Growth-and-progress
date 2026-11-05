@@ -8,10 +8,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.momentum.coach",
-      "infoPlist": {
-        "NSHealthShareUsageDescription": "Momentum reads sleep, steps, workouts and heart data from Apple Health to build and track your plan."
-      }
+      "bundleIdentifier": "app.momentum.coach"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,13 +18,40 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "app.momentum.coach"
+      "package": "app.momentum.coach",
+      "permissions": [
+        "android.permission.health.READ_SLEEP",
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_EXERCISE",
+        "android.permission.health.READ_RESTING_HEART_RATE",
+        "android.permission.health.READ_HEART_RATE_VARIABILITY"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-notifications"
+      "expo-notifications",
+      "expo-dev-client",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Momentum reads sleep, steps, exercise and heart data from Apple Health to build and track your plan.",
+          "NSHealthUpdateUsageDescription": false,
+          "background": false
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "minSdkVersion": 26
+          }
+        }
+      ]
     ]
   }
 }

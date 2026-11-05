@@ -7,7 +7,8 @@ import { toDayKey } from './core/dates';
 import { emptyLog } from './core/progress';
 import { applyPlanChange } from './core/checkin';
 import { initialState, loadState, saveState } from './storage/store';
-import { getHealthSource } from './health';
+import { connectHealthSource, type HealthSource } from './health';
+import { SampleHealthSource } from './health/HealthSource';
 
 interface Ctx {
   ready: boolean;
@@ -15,6 +16,8 @@ interface Ctx {
   today: DayKey;
   health: Record<DayKey, DailyHealth>;
   healthSourceName: string;
+  /** Ask for watch data access (shows the OS permission sheet the first time). */
+  connectWatch(): Promise<void>;
   setPlan(p: Plan | null): void;
   updateLog(day: DayKey, f: (l: DayLog) => DayLog): void;
   applyChange(c: PlanChange): void;
@@ -24,7 +27,6 @@ interface Ctx {
 }
 
 const MomentumCtx = createContext<Ctx | null>(null);
-const source = getHealthSource();
 
 export function MomentumProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -32,6 +34,9 @@ export function MomentumProvider({ children }: { children: React.ReactNode }) {
   const [health, setHealth] = useState<Record<DayKey, DailyHealth>>({});
   const [today, setToday] = useState(toDayKey(new Date()));
   const loaded = useRef(false);
+  const source = useRef<HealthSource>(new SampleHealthSource());
+  const connected = useRef(false);
+  const [sourceName, setSourceName] = useState(source.current.name);
 
   useEffect(() => {
     loadState().then((s) => {
@@ -47,11 +52,29 @@ export function MomentumProvider({ children }: { children: React.ReactNode }) {
 
   const refreshHealth = useCallback(async () => {
     setToday(toDayKey(new Date()));
-    if (await source.requestAccess()) setHealth(await source.dailySummaries(28));
+    try {
+      setHealth(await source.current.dailySummaries(28));
+    } catch {
+      // Keep the last data we had.
+    }
   }, []);
 
+  const connectWatch = useCallback(async () => {
+    if (!connected.current) {
+      connected.current = true;
+      source.current = await connectHealthSource();
+      setSourceName(source.current.name);
+    }
+    await refreshHealth();
+  }, [refreshHealth]);
+
+  // Returning users: reconnect on launch. New users connect when they start onboarding.
   useEffect(() => {
-    refreshHealth();
+    if (ready && state.plan) connectWatch();
+    else refreshHealth();
+  }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     const sub = RNAppState.addEventListener('change', (s) => s === 'active' && refreshHealth());
     return () => sub.remove();
   }, [refreshHealth]);
@@ -62,7 +85,8 @@ export function MomentumProvider({ children }: { children: React.ReactNode }) {
       state,
       today,
       health,
-      healthSourceName: source.name,
+      healthSourceName: sourceName,
+      connectWatch,
       setPlan: (plan) => setState((s) => ({ ...s, plan })),
       updateLog: (day, f) => setState((s) => ({ ...s, logs: { ...s.logs, [day]: f(s.logs[day] ?? emptyLog()) } })),
       applyChange: (c) => setState((s) => (s.plan ? { ...s, plan: applyPlanChange(s.plan, c) } : s)),
@@ -70,7 +94,7 @@ export function MomentumProvider({ children }: { children: React.ReactNode }) {
       addCheckIn: (c) => setState((s) => ({ ...s, checkIns: [c, ...s.checkIns.filter((x) => x.weekOf !== c.weekOf)].slice(0, 52) })),
       reset: () => setState(initialState),
     }),
-    [ready, state, today, health],
+    [ready, state, today, health, sourceName, connectWatch],
   );
 
   return <MomentumCtx.Provider value={value}>{children}</MomentumCtx.Provider>;

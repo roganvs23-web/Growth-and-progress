@@ -11,7 +11,7 @@ const METRIC_UNITS: Record<string, string> = { sleepHours: 'h', steps: ' steps',
 
 export default function Today({ onTalk }: { onTalk: () => void }) {
   const t = useTheme();
-  const { state, today, health, updateLog, reset } = useMomentum();
+  const { state, today, health, updateLog, reset, healthSourceName } = useMomentum();
   const plan = state.plan!;
   const log = state.logs[today];
   const h = health[today];
@@ -46,6 +46,7 @@ export default function Today({ onTalk }: { onTalk: () => void }) {
           <Label color={t.heroMuted}>Readiness</Label>
           <Txt weight="600" style={{ color: t.heroInk }}>{score === undefined ? 'No watch data yet' : score < LOW_READINESS ? 'Take it easy today' : score < 70 ? 'Steady day' : 'Ready to push'}</Txt>
           {h && <Txt size={13} style={{ color: t.heroMuted }}>Slept {h.sleepHours ?? '?'}h · HR {h.restingHR ?? '?'} · HRV {h.hrvMs ?? '?'}ms</Txt>}
+          <Txt size={12} style={{ color: t.heroMuted }}>From {healthSourceName}</Txt>
         </View>
       </Card>
 

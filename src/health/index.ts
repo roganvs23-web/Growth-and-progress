@@ -1,20 +1,30 @@
+import { Platform } from 'react-native';
 import { SampleHealthSource, type HealthSource } from './HealthSource';
 
 export type { HealthSource };
 
 /**
- * Picks the health source for this device.
+ * Connects to the phone's health store: Apple Health on iPhone, Health
+ * Connect on Android. Between them they cover nearly every smartwatch.
  *
- * Next step for real watch data (needs a development build, not Expo Go):
- *  - iOS: add `@kingstinct/react-native-healthkit` and its config plugin in
- *    app.json, then implement HealthKitSource reading sleepAnalysis,
- *    stepCount, appleExerciseTime, restingHeartRate and
- *    heartRateVariabilitySDNN into DailyHealth.
- *  - Android: add `react-native-health-connect` + `expo-health-connect`,
- *    then implement HealthConnectSource reading SleepSession, Steps,
- *    ExerciseSession, RestingHeartRate and HeartRateVariabilityRmssd.
- * Both just need to return Record<DayKey, DailyHealth>; nothing else changes.
+ * Falls back to sample data when the real store is not usable: in Expo Go
+ * (no native health modules), on a simulator, when Health Connect is not
+ * installed, or when the user declines access. The returned source's `name`
+ * says which one is in use, and the UI shows it.
  */
-export function getHealthSource(): HealthSource {
+export async function connectHealthSource(): Promise<HealthSource> {
+  try {
+    let real: HealthSource | null = null;
+    if (Platform.OS === 'ios') {
+      const { HealthKitSource } = require('./HealthKitSource') as typeof import('./HealthKitSource');
+      real = new HealthKitSource();
+    } else if (Platform.OS === 'android') {
+      const { HealthConnectSource } = require('./HealthConnectSource') as typeof import('./HealthConnectSource');
+      real = new HealthConnectSource();
+    }
+    if (real && (await real.requestAccess())) return real;
+  } catch {
+    // Native module missing (Expo Go) or the health store errored.
+  }
   return new SampleHealthSource();
 }
