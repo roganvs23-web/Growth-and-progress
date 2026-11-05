@@ -11,6 +11,8 @@
 - Phone-only mode: morning check-in, hand-ticked habits, focus timer; no sample data in production
 - Tough days: easy days, sick and travel modes, welcome-back fresh start, slip-up reset with triggers
 - Up to 3 goals at once; exam and deadline mode
+- Privacy: per-metric switches, AI coach on/off, export and delete my data (You tab)
+- Age check by birth year, teen-safe coach rules, student and teen pricing hooks
 
 ## Next, in order
 1. **Test real watch data on devices.** Install a development build on an iPhone with Apple Watch and an Android phone with a Galaxy or Pixel watch, and compare numbers with the Health apps.
@@ -22,6 +24,9 @@
 7. **Store listing.** Icon, screenshots, privacy policy (health data is sensitive: explain that only daily summaries go to the coach), App Store and Play review.
 
 ## Decisions for Rogan
-- Price: suggested $7.99/month or $49.99/year with a 7-day free trial.
+- Price: suggested $7.99/month or $49.99/year with a 7-day free trial; student and teen $3.99/month or $24.99/year (placeholders in `src/core/profile.ts`).
+- Under-13s: the parent step is a placeholder, not verified consent (COPPA in the US). Either set the minimum age to 13 and block younger users, or use a verified-consent service before launch. Recommended: block under-13s for v1.
+- Teens 13 to 17: GDPR sets the consent age between 13 and 16 depending on the EU country; a lawyer should confirm before launching in Europe.
+- Student proof: honor system for now; a service like UNiDAYS or SheerID can verify later.
 - App name and bundle id: currently "Momentum" and `app.momentum.coach`.
 - Apple Developer ($99/year) and Google Play Console ($25 once) accounts, in your name or a company's.

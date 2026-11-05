@@ -54,10 +54,11 @@ const Msg = z.object({ role: z.enum(['user', 'assistant']), content: z.string().
 const Health = z.array(z.record(z.string(), z.union([z.string(), z.number()]))).max(31);
 const PlanIn = z.object({ goal: z.string(), why: z.string(), habits: z.array(z.any()).max(8), dayThreshold: z.number(), nudges: z.array(z.string()) }).passthrough();
 
-export const OnboardReq = z.object({ goal: z.string().min(1).max(500), path: z.string(), transcript: z.array(Msg).max(20), health: Health });
+const AgeGroup = z.enum(['child', 'teen', 'adult']).default('adult');
+export const OnboardReq = z.object({ goal: z.string().min(1).max(500), path: z.string(), transcript: z.array(Msg).max(20), health: Health, ageGroup: AgeGroup });
 export const PlanReq = OnboardReq.extend({ template: PlanIn });
-export const ChatReq = z.object({ plan: PlanIn, health: Health, messages: z.array(Msg).min(1).max(20) });
-export const CheckInReq = z.object({ plan: PlanIn, stats: z.record(z.string(), z.any()) });
+export const ChatReq = z.object({ plan: PlanIn, health: Health, messages: z.array(Msg).min(1).max(20), ageGroup: AgeGroup });
+export const CheckInReq = z.object({ plan: PlanIn, stats: z.record(z.string(), z.any()), ageGroup: AgeGroup });
 
 const PERSONA =
   'You are Momentum, a warm, sharp self-improvement coach inside a smartwatch companion app. ' +
@@ -82,12 +83,23 @@ async function ask<T extends z.ZodType>(schema: T, system: string, messages: Ant
 
 export class CoachRefusal extends Error {}
 
+/** Extra rules for younger users. */
+function persona(ageGroup: 'child' | 'teen' | 'adult') {
+  if (ageGroup === 'adult') return PERSONA;
+  return (
+    PERSONA +
+    ' This user is under 18. Never give weight-loss, calorie or dieting advice, and never suggest supplements. ' +
+    'Encourage them to involve a parent, teacher, school counsellor or doctor for anything about vaping, alcohol, mood or health. ' +
+    'If they mention self-harm or being unsafe, tell them kindly to talk to a trusted adult now and to contact local emergency services or a crisis line.'
+  );
+}
+
 const healthText = (h: z.infer<typeof Health>) => (h.length ? h.map((d) => JSON.stringify(d)).join('\n') : 'No watch data yet.');
 
 // ---------- 1. onboarding interview ----------
 export async function onboard(b: z.infer<typeof OnboardReq>) {
   const system =
-    `${PERSONA}\n\nRight now you are getting to know a new user before building their plan. Ask ONE short question at a time (max 28 words). ` +
+    `${persona(b.ageGroup)}\n\nRight now you are getting to know a new user before building their plan. Ask ONE short question at a time (max 28 words). ` +
     'Cover: why the goal matters, what a normal day looks like, what got in the way before, and any limits (time, money, health). ' +
     'Mention something specific from their watch data when relevant. Do not give the plan yet. ' +
     'After 3 or 4 questions, or once you know enough, set done to true and make the message a one-line summary of what you learned.\n\n' +
@@ -108,7 +120,7 @@ export async function plan(b: z.infer<typeof PlanReq>) {
     nudges: z.array(z.string()).describe('2 or 3, each "HH:MM: message", max 12 words'),
   });
   const system =
-    `${PERSONA}\n\nBuild this person's plan. Make it realistic for THEIR day and small enough to start this week. ` +
+    `${persona(b.ageGroup)}\n\nBuild this person's plan. Make it realistic for THEIR day and small enough to start this week. ` +
     'Prefer watch habits for anything a watch measures (sleep, steps, workouts, heart rate), so it tracks itself. ' +
     'Use counter habits for things they count, and tap habits for yes/no. For "quit or cut back" goals, use an atMost counter with a limit a bit below their current use. ' +
     `Start from this template and personalise it:\n${JSON.stringify(b.template.habits)}\n\nWatch data:\n${healthText(b.health)}`;
@@ -139,7 +151,7 @@ export async function chat(b: z.infer<typeof ChatReq>) {
       .describe('null unless they asked for a change or it clearly helps; keep 2 to 8 habits'),
   });
   const system =
-    `${PERSONA}\n\nYou can change their app: add or remove habits, or change how many habits make a good day (dayThreshold). ` +
+    `${persona(b.ageGroup)}\n\nYou can change their app: add or remove habits, or change how many habits make a good day (dayThreshold). ` +
     'If they say the plan is too much, make it smaller rather than removing everything. ' +
     'They may have up to 3 goals (plan.goal plus plan.goals); keep the total to 8 habits and balance them, favouring the goal that matters most right now. If plan.crunch is set (exam or deadline mode), protect that goal and sleep and go easy on the rest.\n\n' +
     `Current plan:\n${JSON.stringify(b.plan)}\n\nWatch data:\n${healthText(b.health)}`;
@@ -169,7 +181,7 @@ export async function checkIn(b: z.infer<typeof CheckInReq>) {
       .describe('0 to 2 concrete plan changes they can accept with one tap; to change a target, remove the habit id and add the new version'),
   });
   const system =
-    `${PERSONA}\n\nWrite this person's weekly check-in from their stats. Rest and recovery days are healthy, not failures. ` +
+    `${persona(b.ageGroup)}\n\nWrite this person's weekly check-in from their stats. Rest and recovery days are healthy, not failures. ` +
     `If a habit is rarely done, make it smaller. If they hit nearly every day, suggest one small step up. ` +
     'For quit goals, slips are normal: if slipTriggers is not empty, name the top trigger kindly and suggest one thing to do instead next time; if most slips followed short sleep (slipsAfterShortSleep), say so. Sick and travel days are not failures.' +
     `\n\nPlan:\n${JSON.stringify(b.plan)}`;
