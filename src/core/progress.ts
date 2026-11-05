@@ -29,8 +29,26 @@ export function isHabitDone(h: Habit, log: DayLog | undefined, health: DailyHeal
     return v !== undefined && v <= s.target;
   }
   const v = health?.[s.metric];
-  if (v === undefined) return false;
+  // No measurement (no watch, or the watch missed it): the user can tick it by hand.
+  if (v === undefined) return !!log?.taps[h.id];
   return s.comparator === 'atLeast' ? v >= s.target : v <= s.target;
+}
+
+/**
+ * Watch data with the morning check-ins folded in. Measured sleep always wins
+ * over self-reported sleep; "feel" only ever comes from the check-in.
+ */
+export function withCheckIns(health: Record<DayKey, DailyHealth>, logs: Logs): Record<DayKey, DailyHealth> {
+  const out: Record<DayKey, DailyHealth> = { ...health };
+  for (const [day, log] of Object.entries(logs)) {
+    const m = log.morning;
+    if (!m) continue;
+    const h: DailyHealth = { ...(out[day] ?? { day }) };
+    if (h.sleepHours === undefined && m.sleepHours !== undefined) h.sleepHours = m.sleepHours;
+    h.feel = m.feel;
+    out[day] = h;
+  }
+  return out;
 }
 
 export function completion(plan: Plan, log: DayLog | undefined, health: DailyHealth | undefined): { done: number; total: number; ratio: number } {
@@ -43,8 +61,10 @@ const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.le
 const clamp = (x: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, x));
 
 /**
- * Readiness 0-100 from last night's sleep plus HRV and resting HR compared
- * with the previous 7 days. Returns undefined when the watch gave us nothing.
+ * Readiness 0-100 from last night's sleep, HRV and resting HR compared with
+ * the previous 7 days, and how the user said they feel. Works with any subset:
+ * with no watch, sleep and feel come from the morning check-in.
+ * Returns undefined when there is nothing to go on.
  */
 export function readiness(day: DayKey, history: Record<DayKey, DailyHealth>): number | undefined {
   const today = history[day];
@@ -59,6 +79,8 @@ export function readiness(day: DayKey, history: Record<DayKey, DailyHealth>): nu
 
   const hrBase = avg(prior.map((p) => p.restingHR).filter((x): x is number => x !== undefined));
   if (today.restingHR !== undefined && hrBase) parts.push({ score: clamp(70 - ((today.restingHR - hrBase) / hrBase) * 300), weight: 0.2 });
+
+  if (today.feel !== undefined) parts.push({ score: clamp(((today.feel - 1) / 4) * 100), weight: 0.4 });
 
   if (!parts.length) return undefined;
   const w = parts.reduce((a, p) => a + p.weight, 0);
