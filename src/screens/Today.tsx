@@ -1,18 +1,20 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import type { DayLog } from '../core/types';
-import { completion, computeStreak, readiness, LOW_READINESS } from '../core/progress';
+import { completion, computeStreak, dayThresholdFor, daysAway, easyDayReason, freshStart, readiness, LOW_READINESS } from '../core/progress';
 import { fromDayKey } from '../core/dates';
 import { useMomentum } from '../state';
 import { Button, Card, Label, Txt } from '../ui/kit';
 import { HabitRow, MorningCheckInCard } from './todayParts';
+import { DayModeButtons, EasyDayCard, overLimit, SlipUpCard, TravelHintCard, WelcomeBackCard } from './toughDays';
 import { useTheme } from '../ui/theme';
 
 const FEEL_WORDS = ['', 'rough', 'meh', 'OK', 'good', 'great'];
 
 export default function Today({ onTalk }: { onTalk: () => void }) {
   const t = useTheme();
-  const { state, today, health, updateLog, reset, mode } = useMomentum();
+  const { state, today, health, updateLog, reset, mode, setPlan, travelHint, dismissTravelHint } = useMomentum();
+  const [hideWelcome, setHideWelcome] = useState(false);
   const plan = state.plan!;
   const log = state.logs[today];
   const h = health[today];
@@ -24,6 +26,13 @@ export default function Today({ onTalk }: { onTalk: () => void }) {
   // Measured sleep comes from the watch; if it's missing we ask in the morning check-in.
   const measuredSleep = h?.sleepHours !== undefined && log?.morning?.sleepHours === undefined;
   const showCheckIn = !log?.morning;
+  const easy = easyDayReason(today, health, state.logs);
+  const needed = Math.ceil(dayThresholdFor(plan, !!easy) * plan.habits.length - 1e-9);
+  const away = daysAway(state.logs, today);
+  const showWelcome = !hideWelcome && away !== null && away >= 4 && plan.restartedAt !== today;
+  const noWatchToday = mode === 'watch' && h?.restingHR === undefined && h?.hrvMs === undefined && (log?.morning?.sleepHours !== undefined || h?.sleepHours === undefined);
+  const slips = overLimit(plan, log);
+  const toggleMode = (k: 'sick' | 'travel') => updateToday((l) => ({ ...l, [k]: !l[k] }));
 
   let vitals: string | null = null;
   if (h && mode === 'watch') vitals = `Slept ${h.sleepHours ?? '?'}h · HR ${h.restingHR ?? '?'} · HRV ${h.hrvMs ?? '?'}ms`;
@@ -60,6 +69,25 @@ export default function Today({ onTalk }: { onTalk: () => void }) {
         </View>
       </Card>
 
+      {showWelcome && (
+        <WelcomeBackCard
+          days={away!}
+          best={streak.best}
+          onFresh={() => setPlan(freshStart(plan, state.logs, health, today))}
+          onDismiss={() => setHideWelcome(true)}
+        />
+      )}
+
+      {travelHint && !log?.travel && (
+        <TravelHintCard onYes={() => { updateToday((l) => ({ ...l, travel: true })); dismissTravelHint(); }} onNo={dismissTravelHint} />
+      )}
+
+      {noWatchToday && (
+        <Card>
+          <Txt size={14}>No watch data yet today. Forgot it or battery died? No problem: your check-in and taps count instead.</Txt>
+        </Card>
+      )}
+
       {showCheckIn && (
         <MorningCheckInCard
           askSleep={!measuredSleep}
@@ -78,6 +106,9 @@ export default function Today({ onTalk }: { onTalk: () => void }) {
         <Button kind="ghost" title={resting ? 'Undo rest' : 'Rest today'} onPress={toggleRest} style={{ minHeight: 40 }} />
       </Card>
 
+      <DayModeButtons log={log} onToggle={toggleMode} />
+      {easy && <EasyDayCard reason={easy} needed={needed} total={plan.habits.length} />}
+
       <View style={{ gap: 4 }}>
         <Label>Your goal</Label>
         <Txt size={17} weight="600">{plan.goal}</Txt>
@@ -87,19 +118,26 @@ export default function Today({ onTalk }: { onTalk: () => void }) {
       <View style={{ gap: 8 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           <Txt size={20} weight="700">Today</Txt>
-          <Txt muted size={13}>{resting ? 'Rest day, streak is safe' : `${done} of ${total} done`}</Txt>
+          <Txt muted size={13}>{resting || log?.sick ? 'Rest day, streak is safe' : `${done} of ${total} done${easy ? ` · ${needed} needed` : ''}`}</Txt>
         </View>
         {plan.habits.map((habit) => (
           <HabitRow key={habit.id} habit={habit} log={log} health={h} update={updateToday} />
         ))}
       </View>
 
-      {score !== undefined && score < LOW_READINESS && (
-        <Card tone="warm">
-          <Label color={t.warmText}>Coach tip</Label>
-          <Txt>Your body is asking for recovery today. If today slips, it will not break your streak.</Txt>
-        </Card>
-      )}
+      {slips.map((hb) => (
+        <SlipUpCard
+          key={hb.id}
+          habit={hb}
+          log={log}
+          recoveryLeft={streak.recoveryLeft}
+          onToggle={(x) => updateToday((l) => {
+            const cur = new Set(l.slips ?? []);
+            if (cur.has(x)) cur.delete(x); else cur.add(x);
+            return { ...l, slips: [...cur] };
+          })}
+        />
+      ))}
 
       <Card tone="warm">
         <Label color={t.warmText}>Not working?</Label>

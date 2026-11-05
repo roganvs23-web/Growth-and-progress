@@ -4,7 +4,7 @@
 // If the coach is unreachable, offlineCheckIn() gives a rule-based version.
 import type { CheckIn, DailyHealth, DayKey, Logs, Plan, PlanChange } from './types';
 import { addDays, daysBetween, weekStart } from './dates';
-import { computeStreak, isHabitDone } from './progress';
+import { computeStreak, isHabitDone, slipTriggers } from './progress';
 
 export interface WeekStats {
   weekOf: DayKey;
@@ -19,6 +19,11 @@ export interface WeekStats {
   prevAvgSleep?: number;
   avgSteps?: number;
   prevAvgSteps?: number;
+  /** Quit goals: what triggered slips this week, most common first. */
+  slipTriggers: { trigger: string; count: number }[];
+  /** Of the days with a slip, how many followed a short night (under 6.5h). */
+  slipsAfterShortSleep: number;
+  slipDays: number;
 }
 
 const mean = (xs: (number | undefined)[]) => {
@@ -51,6 +56,9 @@ export function weekStats(plan: Plan, logs: Logs, health: Record<DayKey, DailyHe
     prevAvgSleep: mean(prevDays.map((d) => health[d]?.sleepHours)),
     avgSteps: mean(days.map((d) => health[d]?.steps)),
     prevAvgSteps: mean(prevDays.map((d) => health[d]?.steps)),
+    slipTriggers: slipTriggers(logs, from, today),
+    slipDays: days.filter((d) => logs[d]?.slips?.length).length,
+    slipsAfterShortSleep: days.filter((d) => logs[d]?.slips?.length && (health[d]?.sleepHours ?? 99) < 6.5).length,
   };
 }
 
@@ -63,6 +71,14 @@ export function offlineCheckIn(plan: Plan, s: WeekStats): CheckIn {
     bullets.push(
       `You averaged ${s.avgSleep.toFixed(1)}h of sleep` +
         (delta !== undefined && Math.abs(delta) >= 0.2 ? `, ${delta > 0 ? 'up' : 'down'} ${Math.abs(delta).toFixed(1)}h on last week.` : '.'),
+    );
+  }
+
+  if (s.slipTriggers.length) {
+    const top = s.slipTriggers[0];
+    bullets.push(
+      `Slips mostly came with "${top.trigger.toLowerCase()}" (${top.count}x).` +
+        (s.slipsAfterShortSleep >= Math.max(1, Math.ceil(s.slipDays / 2)) ? ' Most followed a short night, so sleep is part of the plan.' : ' Plan one thing to do instead next time.'),
     );
   }
 

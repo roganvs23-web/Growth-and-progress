@@ -28,6 +28,9 @@ interface Ctx {
   addChat(...m: CoachMessage[]): void;
   addCheckIn(c: CheckIn): void;
   reset(): void;
+  /** True when the time zone just changed by 2+ hours (probably traveling). */
+  travelHint: boolean;
+  dismissTravelHint(): void;
 }
 
 const MomentumCtx = createContext<Ctx | null>(null);
@@ -42,8 +45,13 @@ export function MomentumProvider({ children }: { children: React.ReactNode }) {
   const connected = useRef(false);
   const [sourceName, setSourceName] = useState(source.current.name);
 
+  const [travelHint, setTravelHint] = useState(false);
+
   useEffect(() => {
     loadState().then((s) => {
+      const tz = new Date().getTimezoneOffset();
+      if (s.tzOffset !== undefined && Math.abs(s.tzOffset - tz) >= 120 && s.plan) setTravelHint(true);
+      s = { ...s, tzOffset: tz };
       setState(s);
       loaded.current = true;
       setReady(true);
@@ -79,7 +87,16 @@ export function MomentumProvider({ children }: { children: React.ReactNode }) {
   }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const sub = RNAppState.addEventListener('change', (s) => s === 'active' && refreshHealth());
+    const sub = RNAppState.addEventListener('change', (a) => {
+      if (a !== 'active') return;
+      refreshHealth();
+      const tz = new Date().getTimezoneOffset();
+      setState((s) => {
+        if (s.tzOffset === tz) return s;
+        if (s.tzOffset !== undefined && Math.abs(s.tzOffset - tz) >= 120 && s.plan) setTravelHint(true);
+        return { ...s, tzOffset: tz };
+      });
+    });
     return () => sub.remove();
   }, [refreshHealth]);
 
@@ -106,8 +123,10 @@ export function MomentumProvider({ children }: { children: React.ReactNode }) {
       addChat: (...m) => setState((s) => ({ ...s, chat: [...s.chat, ...m].slice(-200) })),
       addCheckIn: (c) => setState((s) => ({ ...s, checkIns: [c, ...s.checkIns.filter((x) => x.weekOf !== c.weekOf)].slice(0, 52) })),
       reset: () => setState(initialState),
+      travelHint,
+      dismissTravelHint: () => setTravelHint(false),
     }),
-    [ready, state, today, health, sourceName, connectWatch, mode],
+    [ready, state, today, health, sourceName, connectWatch, mode, travelHint],
   );
 
   return <MomentumCtx.Provider value={value}>{children}</MomentumCtx.Provider>;

@@ -10,6 +10,7 @@ An AI coach for any goal that works with any smartwatch. iPhone and Android, bui
 - **Coach chat.** Ask anything, or say "this is too much" and the coach changes your plan in place.
 - **Weekly check-in.** Numbers are computed on the phone; the coach turns them into three bullets and up to two one-tap plan changes. Works offline with a rule-based version.
 - **No watch needed.** Without a watch, the phone's own step count still flows in, a 10-second morning check-in (sleep and how you feel) drives readiness, habits a watch would measure can be ticked by hand, and study habits get a 25-minute focus timer. A watch is an upgrade, not a requirement. Sample data appears only in development builds (Expo Go, simulators), never in the store app.
+- **Tough days.** A bad night, feeling rough, or a resting heart rate well above normal lightens the day (about half the habits count as a good day). "I'm sick" makes it a free rest day. Travel mode (suggested automatically after a 2+ hour time zone change) makes missed days free. After 4+ days away, a "welcome back" fresh start restarts the streak but keeps history and the best streak. On quit goals, going over the limit shows a no-shame slip-up card that asks what triggered it; the weekly check-in looks for patterns, like slips after short nights.
 - **Offline first.** With no coach server configured, the app still runs end to end on templates and rules.
 
 - **Real watch data.** Reads sleep, steps, exercise minutes, resting heart rate and HRV from Apple Health on iPhone and Health Connect on Android. That covers Apple Watch, Galaxy Watch, Pixel Watch, Fitbit, Garmin, Oura, Whoop and most others, because their apps sync into one of the two. Overlapping records (watch plus phone) are de-duplicated.
@@ -18,7 +19,7 @@ An AI coach for any goal that works with any smartwatch. iPhone and Android, bui
 
 ```bash
 npm install
-npm test            # 19 unit tests for streaks, readiness, templates, check-ins, sleep merging
+npm test            # 27 unit tests for streaks, readiness, templates, check-ins, sleep merging
 npm run typecheck
 npx expo start      # Expo Go works, with sample watch data
 ```
