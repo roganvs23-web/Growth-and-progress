@@ -5,6 +5,8 @@ import { chat, CoachError } from '../coach/coachClient';
 import { recentHealth, useMomentum } from '../state';
 import { Button, Chip, Input, Txt } from '../ui/kit';
 import { useTheme } from '../ui/theme';
+import { safetyCheck, type SafetyTopic } from '../core/safety';
+import SafetyCard from './SafetyCard';
 
 const STARTERS = ['This plan feels like too much', 'Add a habit for drinking water', 'Why is my readiness what it is?', 'Make it harder'];
 
@@ -43,6 +45,7 @@ export default function Coach() {
   const { state, health, addChat, applyChange } = useMomentum();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [safety, setSafety] = useState<SafetyTopic | null>(null);
   const scroll = useRef<ScrollView>(null);
 
   async function send(v = text.trim()) {
@@ -50,6 +53,8 @@ export default function Coach() {
     setText('');
     const userMsg: CoachMessage = { role: 'user', content: v };
     addChat(userMsg);
+    const topic = safetyCheck(v);
+    if (topic) setSafety(topic); // shown right away, before and whatever the coach replies
     setBusy(true);
     try {
       const r = await chat(state.plan, recentHealth(health), [...state.chat, userMsg]);
@@ -76,6 +81,7 @@ export default function Coach() {
       <ScrollView ref={scroll} contentContainerStyle={{ padding: 16, gap: 10 }} onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })}>
         {state.chat.map((m, i) => <Bubble key={i} m={m} />)}
         {busy && <ActivityIndicator color={t.accent} style={{ alignSelf: 'flex-start' }} />}
+        {safety && <SafetyCard topic={safety} onClose={() => setSafety(null)} />}
       </ScrollView>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 14, paddingBottom: 10 }} style={{ flexGrow: 0 }}>
         {STARTERS.map((s) => <Chip key={s} title={s} onPress={() => send(s)} />)}

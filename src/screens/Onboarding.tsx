@@ -8,6 +8,8 @@ import { recentHealth, useMomentum } from '../state';
 import { Bubble } from './Coach';
 import { Button, Card, Chip, Input, Label, Title, Txt } from '../ui/kit';
 import { useTheme } from '../ui/theme';
+import { safetyCheck } from '../core/safety';
+import SafetyCard from './SafetyCard';
 
 const PATHS: GoalPath[] = ['focus', 'fitness', 'quit', 'custom'];
 
@@ -25,6 +27,7 @@ export default function Onboarding() {
   const scroll = useRef<ScrollView>(null);
 
   const chosenPath = path ?? guessPath(goal);
+  const safety = safetyCheck([goal, ...talk.filter((m) => m.role === 'user').map((m) => m.content)].join('\n'));
 
   async function ask(transcript: CoachMessage[]) {
     setBusy(true);
@@ -105,9 +108,11 @@ export default function Onboarding() {
           style={{ minHeight: 88, textAlignVertical: 'top' }}
           accessibilityLabel="Your goal"
         />
+        {safety && <SafetyCard topic={safety} />}
         <Button title="Start with my coach" onPress={() => start()} disabled={!goal.trim() && !path} />
         <Card>
           <Txt muted size={13}>No watch needed. Momentum uses your phone's step count and a 10-second morning check-in. Got a watch? When you start, allow {Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect'} and it also reads your sleep, workouts and heart data (Apple Watch, Galaxy, Pixel, Fitbit, Garmin and more). Only daily totals are used.</Txt>
+          <Txt muted size={12}>Momentum is a habit coach, not medical advice. If you have a health condition, check with a doctor before big changes.</Txt>
         </Card>
       </ScrollView>
     );
@@ -135,6 +140,7 @@ export default function Onboarding() {
         {talk.map((m, i) => <Bubble key={i} m={m} />)}
         {busy && <ActivityIndicator color={t.accent} style={{ alignSelf: 'flex-start' }} />}
         {error && <Bubble m={{ role: 'note', content: error }} />}
+        {safety && <SafetyCard topic={safety} />}
       </ScrollView>
       <View style={{ padding: 12, gap: 8, borderTopWidth: 1, borderColor: t.line, backgroundColor: t.card }}>
         {!done && (

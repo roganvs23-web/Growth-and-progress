@@ -7,6 +7,7 @@ import { coachAvailable } from '../coach/coachClient';
 import { useMomentum } from '../state';
 import { Button, Card, Label, Txt } from '../ui/kit';
 import { useTheme } from '../ui/theme';
+import { HELPLINES_URL } from '../core/safety';
 
 export const PRIVACY_URL = 'https://github.com/roganvs23-web/Growth-and-progress/blob/main/PRIVACY.md';
 
@@ -80,6 +81,13 @@ export default function You() {
             style={{ minHeight: 40 }}
           />
         </View>
+      </Card>
+
+      <Card>
+        <Label>Health and safety</Label>
+        <Txt size={14}>Momentum is a habit coach, not a medical device, and it doesn't give medical advice. Readiness is an estimate from your watch data, not a health measurement. Check with a doctor before a new exercise plan if you have a health condition, are pregnant, or haven't been active for a while, and before stopping alcohol or any medication.</Txt>
+        <Txt size={14}>In an emergency, call your local emergency number. If you're struggling, free and confidential help is available.</Txt>
+        <Txt size={14} style={{ color: t.accent }} accessibilityRole="link" onPress={() => Linking.openURL(HELPLINES_URL).catch(() => {})}>Find a helpline in your country</Txt>
       </Card>
 
       <Card>
