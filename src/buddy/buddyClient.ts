@@ -3,6 +3,7 @@
 import type { BuddyStatus } from '../core/buddy';
 
 const BASE = process.env.EXPO_PUBLIC_COACH_URL?.replace(/\/$/, '');
+const KEY = process.env.EXPO_PUBLIC_COACH_KEY;
 export const buddyAvailable = () => !!BASE;
 
 export class BuddyError extends Error {
@@ -17,7 +18,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   const timer = setTimeout(() => ctl.abort(), 15000);
   let res: Response;
   try {
-    res = await fetch(`${BASE}/v1/buddy/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal });
+    res = await fetch(`${BASE}/v1/buddy/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(KEY ? { 'x-momentum-key': KEY } : {}) }, body: JSON.stringify(body), signal: ctl.signal });
   } catch {
     throw new BuddyError('Could not reach the server. Check your connection.');
   } finally {

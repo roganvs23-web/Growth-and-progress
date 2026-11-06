@@ -8,7 +8,7 @@ import { emptyLog, withCheckIns } from './core/progress';
 import { addDays } from './core/dates';
 import { applyPlanChange } from './core/checkin';
 import { initialState, loadState, saveState } from './storage/store';
-import { ageGroup, applyPrivacy, DEFAULT_PRIVACY, type PrivacySettings, type Profile } from './core/profile';
+import { ageGroup, applyPrivacy, coachAllowed, DEFAULT_PRIVACY, type PrivacySettings, type Profile } from './core/profile';
 import { configureCoach } from './coach/coachClient';
 import type { BuddyLink } from './core/buddy';
 import { leaveBuddy } from './buddy/buddyClient';
@@ -114,8 +114,8 @@ export function MomentumProvider({ children }: { children: React.ReactNode }) {
   const health = useMemo(() => withCheckIns(applyPrivacy(rawHealth, privacy), state.logs), [rawHealth, privacy, state.logs]);
 
   useEffect(() => {
-    configureCoach({ enabled: privacy.coach, ageGroup: ageGroup(state.profile) });
-  }, [privacy.coach, state.profile]);
+    configureCoach({ enabled: coachAllowed(privacy), ageGroup: ageGroup(state.profile) });
+  }, [privacy, state.profile]);
   const mode: Ctx['mode'] = useMemo(() => {
     if (source.current instanceof SampleHealthSource) return 'sample';
     // A watch shows up as measured sleep or heart data in the last week.

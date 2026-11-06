@@ -33,3 +33,12 @@ describe('privacy', () => {
     expect(h['2026-11-05'].restingHR).toBe(60);
   });
 });
+
+describe('AI coach consent', () => {
+  test('the coach runs only after the user agreed', () => {
+    const { coachAllowed, DEFAULT_PRIVACY } = require('../profile');
+    expect(coachAllowed(DEFAULT_PRIVACY)).toBe(false);
+    expect(coachAllowed({ ...DEFAULT_PRIVACY, coachConsentAt: '2026-11-06T00:00:00Z' })).toBe(true);
+    expect(coachAllowed({ ...DEFAULT_PRIVACY, coach: false, coachConsentAt: '2026-11-06T00:00:00Z' })).toBe(false);
+  });
+});
