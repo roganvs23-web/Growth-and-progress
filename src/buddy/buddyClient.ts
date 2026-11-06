@@ -26,7 +26,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   }
   if (!res.ok) {
     const code = ((await res.json().catch(() => ({}))) as { error?: string }).error;
-    const msg = code === 'not_found' ? "That code didn't work. Codes last 48 hours." : code === 'full' ? 'That code has already been used.' : code === 'rate_limited' ? 'Too many tries. Wait a minute.' : 'Something went wrong. Try again.';
+    const msg = code === 'not_found' ? "That code didn't work. Codes last 48 hours." : code === 'full' ? 'That code has already been used.' : code === 'rate_limited' ? 'Too many tries. Wait a minute.' : res.status === 400 ? "That nickname can't be used. Try letters and numbers, nothing rude." : 'Something went wrong. Try again.';
     throw new BuddyError(msg, code);
   }
   return (await res.json()) as T;

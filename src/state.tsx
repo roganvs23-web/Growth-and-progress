@@ -7,6 +7,7 @@ import { toDayKey } from './core/dates';
 import { emptyLog, withCheckIns } from './core/progress';
 import { addDays } from './core/dates';
 import { applyPlanChange } from './core/checkin';
+import { sanitizePlan } from './core/safety';
 import { initialState, loadState, saveState } from './storage/store';
 import { ageGroup, applyPrivacy, coachAllowed, DEFAULT_PRIVACY, type PrivacySettings, type Profile } from './core/profile';
 import { configureCoach } from './coach/coachClient';
@@ -61,7 +62,7 @@ export function MomentumProvider({ children }: { children: React.ReactNode }) {
     loadState().then((s) => {
       const tz = new Date().getTimezoneOffset();
       if (s.tzOffset !== undefined && Math.abs(s.tzOffset - tz) >= 120 && s.plan) setTravelHint(true);
-      s = { ...s, tzOffset: tz };
+      s = { ...s, tzOffset: tz, plan: s.plan && sanitizePlan(s.plan, ageGroup(s.profile)) };
       setState(s);
       loaded.current = true;
       setReady(true);
@@ -132,9 +133,9 @@ export function MomentumProvider({ children }: { children: React.ReactNode }) {
       healthSourceName: sourceName,
       mode,
       connectWatch,
-      setPlan: (plan) => setState((s) => ({ ...s, plan })),
+      setPlan: (plan) => setState((s) => ({ ...s, plan: plan && sanitizePlan(plan, ageGroup(s.profile)) })),
       updateLog: (day, f) => setState((s) => ({ ...s, logs: { ...s.logs, [day]: f(s.logs[day] ?? emptyLog()) } })),
-      applyChange: (c) => setState((s) => (s.plan ? { ...s, plan: applyPlanChange(s.plan, c) } : s)),
+      applyChange: (c) => setState((s) => (s.plan ? { ...s, plan: sanitizePlan(applyPlanChange(s.plan, c), ageGroup(s.profile)) } : s)),
       addChat: (...m) => setState((s) => ({ ...s, chat: [...s.chat, ...m].slice(-200) })),
       addCheckIn: (c) => setState((s) => ({ ...s, checkIns: [c, ...s.checkIns.filter((x) => x.weekOf !== c.weekOf)].slice(0, 52) })),
       // Clears the plan, history, chat, profile and settings on this phone. The coach server keeps nothing.

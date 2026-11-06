@@ -28,7 +28,11 @@ interface Pair {
   members: Member[];
 }
 
-const Name = z.string().trim().min(1).max(20);
+// Nicknames are the only text one person shows another, so keep them clean
+// (App Store guideline 1.2). Letters, numbers, spaces and a little punctuation only.
+const BLOCKED = /(fuck|shit|cunt|bitch|whore|slut|nigg|fag|retard|\brape|nazi|penis|vagina|pussy|porn)/i;
+export const nicknameOk = (s: string) => /^[\p{L}\p{N} ._'-]{1,20}$/u.test(s) && !BLOCKED.test(s.replace(/[\s._'-]/g, '').replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e').replace(/4/g, 'a').replace(/5/g, 's'));
+const Name = z.string().trim().min(1).max(20).refine(nicknameOk, 'nickname_not_allowed');
 const Token = z.string().length(48);
 export const BuddyCreateReq = z.object({ name: Name });
 export const BuddyJoinReq = z.object({ code: z.string().trim().toUpperCase().length(6), name: Name });
