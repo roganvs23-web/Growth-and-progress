@@ -74,4 +74,6 @@ npx eas-cli@latest submit --platform ios      # needs an Apple Developer account
 npx eas-cli@latest submit --platform android  # needs a Google Play Console account
 ```
 
+Step-by-step for the first TestFlight build, including hosting the coach server on Render (`render.yaml`): see `TESTFLIGHT.md`. Privacy policy: `PRIVACY.md`.
+
 See `ROADMAP.md` for what is left before a paid launch.

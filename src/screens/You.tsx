@@ -2,11 +2,13 @@
 import React from 'react';
 import { Alert, Linking, Platform, ScrollView, Share, Switch, View } from 'react-native';
 import type { WatchMetric } from '../core/types';
-import { ageGroup, PRICING, priceTier } from '../core/profile';
+import { ageGroup, COACH_ON, coachAllowed, PRICING, priceTier } from '../core/profile';
 import { coachAvailable } from '../coach/coachClient';
 import { useMomentum } from '../state';
 import { Button, Card, Label, Txt } from '../ui/kit';
 import { useTheme } from '../ui/theme';
+
+export const PRIVACY_URL = 'https://github.com/roganvs23-web/Growth-and-progress/blob/main/PRIVACY.md';
 
 const METRICS: { id: WatchMetric; label: string }[] = [
   { id: 'sleepHours', label: 'Sleep' },
@@ -47,11 +49,11 @@ export default function You() {
         ))}
         <Row
           label="AI coach"
-          value={privacy.coach}
-          onChange={(v) => setPrivacy({ ...privacy, coach: v })}
-          hint={privacy.coach ? 'Sends your plan, chat and daily totals to the coach server to get replies. The server does not store them.' : 'Off: plans and weekly check-ins use built-in rules, nothing leaves your phone.'}
+          value={coachAllowed(privacy)}
+          onChange={(v) => setPrivacy({ ...privacy, coach: v, coachAskedAt: privacy.coachAskedAt ?? new Date().toISOString(), coachConsentAt: v ? new Date().toISOString() : undefined })}
+          hint={coachAllowed(privacy) ? COACH_ON : 'Off: plans and weekly check-ins use built-in rules, nothing leaves your phone.'}
         />
-        {!coachAvailable() && privacy.coach && <Txt muted size={12}>The coach server isn't set up in this build, so nothing is sent anyway.</Txt>}
+        {!coachAvailable() && coachAllowed(privacy) && <Txt muted size={12}>The coach server isn't set up in this build, so nothing is sent anyway.</Txt>}
         <Button
           kind="ghost"
           title={Platform.OS === 'ios' ? 'Change Apple Health access' : 'Change Health Connect access'}
@@ -63,6 +65,7 @@ export default function You() {
       <Card>
         <Label>Your data</Label>
         <Txt muted size={13}>Everything lives on this phone. Export it any time, or delete it for good.</Txt>
+        <Txt size={14} style={{ color: t.accent }} accessibilityRole="link" onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})}>Read the privacy policy</Txt>
         <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
           <Button kind="ghost" title="Export my data" onPress={() => Share.share({ title: 'Momentum data', message: exportData() }).catch(() => {})} style={{ minHeight: 40 }} />
           <Button

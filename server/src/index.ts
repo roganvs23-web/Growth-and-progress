@@ -23,6 +23,11 @@ const routes: Record<string, { schema: z.ZodType; run: (b: any) => Promise<unkno
 
 const MAX_BODY = 200_000;
 
+// Optional shared key the app sends in a header. It is not a real secret (it
+// ships inside the app), but it stops random scanners from spending API credit.
+const APP_KEY = process.env.APP_KEY;
+if (!process.env.ANTHROPIC_API_KEY) console.warn('ANTHROPIC_API_KEY is not set: coach routes will fail. Buddy routes still work.');
+
 // Very small per-IP rate limit so one device cannot run up the bill.
 // Replace with per-account limits once sign-in and subscriptions exist.
 const hits = new Map<string, number[]>();
@@ -65,6 +70,7 @@ const server = createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/health') return send(res, 200, { ok: true });
   const route = req.method === 'POST' && req.url ? routes[req.url] : undefined;
   if (!route) return send(res, 404, { error: 'not_found' });
+  if (APP_KEY && req.headers['x-momentum-key'] !== APP_KEY) return send(res, 401, { error: 'unauthorized' });
 
   const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
   if (limited(ip)) return send(res, 429, { error: 'rate_limited' });

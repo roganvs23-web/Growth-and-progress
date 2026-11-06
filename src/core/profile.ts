@@ -25,7 +25,18 @@ export interface PrivacySettings {
   metrics: Record<WatchMetric, boolean>;
   /** Send daily summaries to the AI coach. Off: the app runs on built-in rules only. */
   coach: boolean;
+  /** When the user agreed to send data to the AI coach (Apple guideline 5.1.2: ask before sharing with an AI service). */
+  coachConsentAt?: string;
+  /** Set once the user has been asked, whatever they answered. */
+  coachAskedAt?: string;
 }
+
+/** Shown wherever the user turns the AI coach on. */
+export const COACH_ON =
+  'Sends your goal, plan, chat and daily totals (never minute-by-minute data) through the Momentum server to Claude, an AI model made by Anthropic, to write replies. Neither keeps them to train AI, and the Momentum server does not store them.';
+
+/** The coach runs only when switched on and the user has agreed to it. */
+export const coachAllowed = (p: PrivacySettings) => p.coach && !!p.coachConsentAt;
 
 export const DEFAULT_PRIVACY: PrivacySettings = {
   metrics: { sleepHours: true, steps: true, workoutMinutes: true, restingHR: true, hrvMs: true },

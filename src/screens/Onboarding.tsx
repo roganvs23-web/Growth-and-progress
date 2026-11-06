@@ -2,7 +2,8 @@ import React, { useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import type { CoachMessage, GoalPath } from '../core/types';
 import { TEMPLATES, guessPath, planFromTemplate } from '../core/templates';
-import { buildPlan, onboardTurn, CoachError } from '../coach/coachClient';
+import { buildPlan, coachConfigured, configureCoach, onboardTurn, CoachError } from '../coach/coachClient';
+import { ageGroup, COACH_ON } from '../core/profile';
 import { recentHealth, useMomentum } from '../state';
 import { Bubble } from './Coach';
 import { Button, Card, Chip, Input, Label, Title, Txt } from '../ui/kit';
@@ -12,8 +13,8 @@ const PATHS: GoalPath[] = ['focus', 'fitness', 'quit', 'custom'];
 
 export default function Onboarding() {
   const t = useTheme();
-  const { health, today, setPlan, addChat, connectWatch } = useMomentum();
-  const [step, setStep] = useState<'goal' | 'talk'>('goal');
+  const { health, today, setPlan, addChat, connectWatch, privacy, setPrivacy, state } = useMomentum();
+  const [step, setStep] = useState<'goal' | 'consent' | 'talk'>('goal');
   const [path, setPath] = useState<GoalPath | null>(null);
   const [goal, setGoal] = useState('');
   const [talk, setTalk] = useState<CoachMessage[]>([]);
@@ -40,8 +41,17 @@ export default function Onboarding() {
     }
   }
 
-  async function start() {
+  // Ask once, before anything is sent to the AI coach (App Store guideline 5.1.2).
+  function decide(allow: boolean) {
+    const now = new Date().toISOString();
+    setPrivacy({ ...privacy, coach: allow, coachAskedAt: now, coachConsentAt: allow ? now : undefined });
+    configureCoach({ enabled: allow, ageGroup: ageGroup(state.profile) }); // apply before the first call below
+    start(true);
+  }
+
+  async function start(asked = false) {
     if (!goal.trim() && !path) return;
+    if (!asked && coachConfigured() && !privacy.coachAskedAt) return setStep('consent');
     if (!goal.trim()) setGoal(TEMPLATES[chosenPath].title);
     setStep('talk');
     setBusy(true);
@@ -95,10 +105,22 @@ export default function Onboarding() {
           style={{ minHeight: 88, textAlignVertical: 'top' }}
           accessibilityLabel="Your goal"
         />
-        <Button title="Start with my coach" onPress={start} disabled={!goal.trim() && !path} />
+        <Button title="Start with my coach" onPress={() => start()} disabled={!goal.trim() && !path} />
         <Card>
           <Txt muted size={13}>No watch needed. Momentum uses your phone's step count and a 10-second morning check-in. Got a watch? When you start, allow {Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect'} and it also reads your sleep, workouts and heart data (Apple Watch, Galaxy, Pixel, Fitbit, Garmin and more). Only daily totals are used.</Txt>
         </Card>
+      </ScrollView>
+    );
+  }
+
+  if (step === 'consent') {
+    return (
+      <ScrollView contentContainerStyle={{ padding: 18, paddingTop: 28, gap: 16 }}>
+        <Title>Use the AI coach?</Title>
+        <Txt>{COACH_ON}</Txt>
+        <Txt muted size={13}>You can change this any time in You, Privacy. Without it, Momentum still builds a plan from proven templates and runs fully on your phone.</Txt>
+        <Button title="Use the AI coach" onPress={() => decide(true)} />
+        <Button kind="ghost" title="Not now, keep everything on my phone" onPress={() => decide(false)} />
       </ScrollView>
     );
   }

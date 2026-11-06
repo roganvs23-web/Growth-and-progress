@@ -6,6 +6,7 @@ import type { WeekStats } from '../core/checkin';
 import { offlineCheckIn } from '../core/checkin';
 
 const BASE = process.env.EXPO_PUBLIC_COACH_URL?.replace(/\/$/, '');
+const KEY = process.env.EXPO_PUBLIC_COACH_KEY;
 
 // Set from the privacy settings and profile (see state.tsx).
 let enabled = true;
@@ -17,6 +18,8 @@ export function configureCoach(opts: { enabled: boolean; ageGroup: 'child' | 'te
 const base = () => (enabled ? BASE : undefined);
 
 export const coachAvailable = () => !!base();
+/** A coach server is built into this app (whether or not the user turned the coach on). */
+export const coachConfigured = () => !!BASE;
 
 export class CoachError extends Error {}
 
@@ -28,7 +31,7 @@ async function post<T>(path: string, body: unknown, timeoutMs = 45000): Promise<
   try {
     const res = await fetch(`${b}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(KEY ? { 'x-momentum-key': KEY } : {}) },
       body: JSON.stringify({ ...(body as object), ageGroup }),
       signal: ctl.signal,
     });

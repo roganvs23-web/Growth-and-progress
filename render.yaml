@@ -1,0 +1,26 @@
+# One-click hosting for the Momentum coach server on Render (render.com).
+# New > Blueprint > pick this repo. Render asks for ANTHROPIC_API_KEY;
+# APP_KEY is generated for you (copy it into the app build as EXPO_PUBLIC_COACH_KEY).
+# The 1 GB disk keeps buddy-mode pairs across restarts and needs a paid plan.
+services:
+  - type: web
+    name: momentum-coach
+    runtime: node
+    rootDir: server
+    plan: starter
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: APP_KEY
+        generateValue: true
+      - key: BUDDY_DATA_FILE
+        value: /data/buddies.json
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
